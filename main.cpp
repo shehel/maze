@@ -5,6 +5,10 @@
 #include <GL/glut.h>
 #endif
 
+#include <iostream>
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -13,6 +17,15 @@
 
 bool g_spinning = false;
 int g_angle = 0;
+//float eyex = 1;
+//float near = -3.0f;
+
+float camera_x = 0.0f;
+float camera_y = 0.0f;
+float camera_z = 0.0f;
+float pitch = 0.0f; // The rotation along the x axis
+float yaw = 0.0f; // The rotation along the y axis
+float roll = 0.0f;
 
 unsigned int g_program_obj = 0;
 unsigned int g_vertex_obj = 0;
@@ -22,11 +35,65 @@ int g_ticks = 0; // keeps couting
 int v_ticks_loc = 0; // location of ticker in vertex shader
 int v_toggle_loc = 0; // location of action toggle flag
 
+void ground(float x1, float x2, float y1, float z1, float z2){
+	glBegin(GL_QUADS);
+
+	glColor3f(0.0, 0.0, 0.2);
+	glVertex3f(x2, y1, z1);
+	glVertex3f(x1, y1, z1);
+	glVertex3f(x1, y1, z2);
+	glVertex3f(x2, y1, z2);
+
+	glEnd();
+}
+
+void wall(float x1, float x2, float y1, float y2, float z1, float z2){
+	glBegin(GL_QUADS);
+
+	glColor3f(8.3, 0.2, 0.0);
+	glVertex3f(x1, y1, z1);
+	glVertex3f(x2, y1, z1);
+	glColor3f(1.3, 7.2, 0.0);
+	glVertex3f(x2, y2, z1);
+	glVertex3f(x1, y2, z1);
+
+	glColor3f(0.3, 9.2, 2.0);
+	glVertex3f(x1, y1, z2);
+	glVertex3f(x2, y1, z2);
+	glColor3f(1.3, 0.2, 9.0);
+	glVertex3f(x2, y2, z2);
+	glVertex3f(x1, y2, z2);
+
+	glColor3f(0.3, 7.2, 0.0);
+	glVertex3f(x1, y2, z1);
+	glVertex3f(x2, y2, z1);
+	glColor3f(0.3, 0.2, 9.0);
+	glVertex3f(x2, y2, z2);
+	glVertex3f(x1, y2, z2);
+
+	glColor3f(0.3, 0.2, 8.0);
+	glVertex3f(x1, y1, z1);
+	glVertex3f(x1, y2, z1);
+	glColor3f(8.3, 0.2, 2.0);
+	glVertex3f(x1, y2, z2);
+	glVertex3f(x1, y1, z2);
+
+	glColor3f(0.3, 0.2, 8.0);
+	glVertex3f(x2, y1, z1);
+	glVertex3f(x2, y2, z1);
+	glColor3f(9.3, 0.2, 0.0);
+	glVertex3f(x2, y2, z2);
+	glVertex3f(x2, y1, z2);
+
+	glEnd();
+}
+
+
 void idle()
 {
-	/*bool post = false;
+	bool post = false;
 
-    usleep(10000); // in microseconds
+    	usleep(10000); // in microseconds
 
 	// restrict to range 0 to 999
 	g_ticks = (g_ticks+1)%1000;
@@ -47,36 +114,110 @@ void idle()
 	// only redraw if we need to
 	if (post)
     	glutPostRedisplay();
-	*/
+
+}
+
+void keyboard(unsigned char key, int, int)
+{
+
+	//std::cerr << "\t you pressed the " << key << " key" << std::endl;
+	//std::cerr << "\t x coordinate: " << x << " y coordinate: " << y << std::endl;
+
+	switch (key)
+	{
+		//case 's': eyey = eyey - 0.10f; break;
+
+		case 'a': eyex = eyex - 0.10f; break;
+
+		case 'd': eyex = eyex + 0.10f; break;
+
+		// clockwise rotate
+		//case 'w': eyey = eyey + 0.10f; break;
+
+		case 'w': near = near - 0.10f; break;
+
+		case 's': near = near + 0.10f; break;
+	}
+
+	glutPostRedisplay(); // force a redraw
 }
 
 void display()
 {
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-	// position and orient camera
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+
+
+
+	//TODO Player help when stuck by moving camera?
+	/* position and orient camera
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	gluLookAt(1, 1, 3, // eye position
-			  0, 0, 0, // reference point
+			  eyex, near, 0, // reference point
 			  0, 1, 0  // up vector
 		);
+	*/
 
 	//glRotatef(g_angle, 0, 1, 0);
+	glLoadIdentity();
+	glRotatef(pitch, 1.0f, 0.0f, 0.0f);
+	glRotatef(yaw, 0.0f, 1.0f, 0.0f);
+	glRotatef(roll, 0.0f, 0.0f, 1.0f);
+	glTranslatef(-x, -y, -z);
+
 
 	if (glIsProgram(g_program_obj))
 		glUniform1i(v_toggle_loc, true); // turn on vertex rotation
 
-	/*glBegin(GL_TRIANGLES);
-		glColor3f(1.0f, 0.0f, 0.0f);
-		glVertex3f(-0.25f, -0.25f, 0.25f);
-		glColor3f(0.0f, 1.0f, 0.0f);
-		glVertex3f(0.25f, -0.25f, 0.25f);
-		glColor3f(0.0f, 0.0f, 1.0f);
-		glVertex3f(0.0f, 0.25f, -0.25f);
-	glEnd();*/
+	glBegin(GL_QUADS);                // Begin drawing the color cube with 6 quads
+      // Top face (y = 1.0f)
+      // Define vertices in counter-clockwise (CCW) order with normal pointing out
+      glColor3f(0.0f, 1.0f, 0.0f);     // Green
+      glVertex3f( 1.0f, 1.0f, -1.0f);
+      glVertex3f(-1.0f, 1.0f, -1.0f);
+      glVertex3f(-1.0f, 1.0f,  1.0f);
+      glVertex3f( 1.0f, 1.0f,  1.0f);
 
-	if (glIsProgram(g_program_obj))
+      // Bottom face (y = -1.0f)
+      glColor3f(1.0f, 0.5f, 0.0f);     // Orange
+      glVertex3f( 1.0f, -1.0f,  1.0f);
+      glVertex3f(-1.0f, -1.0f,  1.0f);
+      glVertex3f(-1.0f, -1.0f, -1.0f);
+      glVertex3f( 1.0f, -1.0f, -1.0f);
+
+      // Front face  (z = 1.0f)
+      glColor3f(1.0f, 0.0f, 0.0f);     // Red
+      glVertex3f( 1.0f,  1.0f, 1.0f);
+      glVertex3f(-1.0f,  1.0f, 1.0f);
+      glVertex3f(-1.0f, -1.0f, 1.0f);
+      glVertex3f( 1.0f, -1.0f, 1.0f);
+
+      // Back face (z = -1.0f)
+      glColor3f(1.0f, 1.0f, 0.0f);     // Yellow
+      glVertex3f( 1.0f, -1.0f, -1.0f);
+      glVertex3f(-1.0f, -1.0f, -1.0f);
+      glVertex3f(-1.0f,  1.0f, -1.0f);
+      glVertex3f( 1.0f,  1.0f, -1.0f);
+
+      // Left face (x = -1.0f)
+      glColor3f(0.0f, 0.0f, 1.0f);     // Blue
+      glVertex3f(-1.0f,  1.0f,  1.0f);
+      glVertex3f(-1.0f,  1.0f, -1.0f);
+      glVertex3f(-1.0f, -1.0f, -1.0f);
+      glVertex3f(-1.0f, -1.0f,  1.0f);
+
+      // Right face (x = 1.0f)
+      glColor3f(1.0f, 0.0f, 1.0f);     // Magenta
+      glVertex3f(1.0f,  1.0f, -1.0f);
+      glVertex3f(1.0f,  1.0f,  1.0f);
+      glVertex3f(1.0f, -1.0f,  1.0f);
+      glVertex3f(1.0f, -1.0f, -1.0f);
+   glEnd();  // End of drawing color-cube
+
+	if(glIsProgram(g_program_obj))
 		glUniform1i(v_toggle_loc, false); // turn off vertex rotation
 
 	//glColor3f(0.8f, 0.8f, 0.8f);
@@ -95,15 +236,7 @@ void reshape(int w, int h)
 	glutPostRedisplay();
 }
 
-void keyboard(unsigned char key, int, int)
-{
-	switch (key)
-	{
-		case 'q': exit(0); break;
-		case ' ': g_spinning = !g_spinning; break;
-	}
-	glutPostRedisplay();
-}
+
 
 char* read_shader_source(const char* filename)
 {
@@ -247,6 +380,11 @@ void init(int argc, char* argv[])
 
 	}
 
+	glMatrixMode (GL_PROJECTION);
+	glEnable(GL_DEPTH_TEST);
+	glLoadIdentity ();
+
+	glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
 
 	glEnable(GL_DEPTH_TEST);
 }
