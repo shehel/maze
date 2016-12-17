@@ -14,18 +14,22 @@
 #include <stddef.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <math.h>
 
 bool g_spinning = false;
 int g_angle = 0;
-//float eyex = 1;
-//float near = -3.0f;
+float eyex = 1;
+float near = -3.0f;
 
-float camera_x = 0.0f;
-float camera_y = 0.0f;
-float camera_z = 0.0f;
-float pitch = 0.0f; // The rotation along the x axis
-float yaw = 0.0f; // The rotation along the y axis
-float roll = 0.0f;
+// angle of rotation for the camera direction
+float angle=0.0;
+// actual vector representing the camera's direction
+float lx=0.0f,lz=-1.0f;
+// XZ position of the camera
+float x=0.0f,z=5.0f, y = 1;
+float tilt = 1;
+
+
 
 unsigned int g_program_obj = 0;
 unsigned int g_vertex_obj = 0;
@@ -35,17 +39,6 @@ int g_ticks = 0; // keeps couting
 int v_ticks_loc = 0; // location of ticker in vertex shader
 int v_toggle_loc = 0; // location of action toggle flag
 
-void ground(float x1, float x2, float y1, float z1, float z2){
-	glBegin(GL_QUADS);
-
-	glColor3f(0.0, 0.0, 0.2);
-	glVertex3f(x2, y1, z1);
-	glVertex3f(x1, y1, z1);
-	glVertex3f(x1, y1, z2);
-	glVertex3f(x2, y1, z2);
-
-	glEnd();
-}
 
 void wall(float x1, float x2, float y1, float y2, float z1, float z2){
 	glBegin(GL_QUADS);
@@ -93,7 +86,7 @@ void idle()
 {
 	bool post = false;
 
-    	usleep(10000); // in microseconds
+    usleep(10000); // in microseconds
 
 	// restrict to range 0 to 999
 	g_ticks = (g_ticks+1)%1000;
@@ -119,7 +112,7 @@ void idle()
 
 void keyboard(unsigned char key, int, int)
 {
-
+	float fraction = 1;
 	//std::cerr << "\t you pressed the " << key << " key" << std::endl;
 	//std::cerr << "\t x coordinate: " << x << " y coordinate: " << y << std::endl;
 
@@ -127,16 +120,37 @@ void keyboard(unsigned char key, int, int)
 	{
 		//case 's': eyey = eyey - 0.10f; break;
 
-		case 'a': eyex = eyex - 0.10f; break;
+		case 'a': angle -= 0.1f;
+			lx = sin(angle);
+			lz = -cos(angle);
+			break;
 
-		case 'd': eyex = eyex + 0.10f; break;
+		case 'd': angle += 0.1f;
+		 	lx = sin(angle);
+		 	lz = -cos(angle);
+		 	break;
 
 		// clockwise rotate
 		//case 'w': eyey = eyey + 0.10f; break;
 
-		case 'w': near = near - 0.10f; break;
+		case 'w': x += lx * fraction;
+			z += lz * fraction;
+			break;
 
-		case 's': near = near + 0.10f; break;
+		case 's': x -= lx * fraction;
+			z -= lz * fraction;
+			break;
+
+		case 'q': tilt += 0.1;
+			break;
+		case 'Q': tilt -= 0.1;
+			break;
+
+		case ' ': y = y + 0.5;
+			break;
+
+		case 'T': y = 1;
+			break;
 	}
 
 	glutPostRedisplay(); // force a redraw
@@ -144,85 +158,90 @@ void keyboard(unsigned char key, int, int)
 
 void display()
 {
+	glMatrixMode(GL_MODELVIEW);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
+	gluLookAt(x, tilt, z, // eye position
+			  x+lx, y, z+lz, // reference point
+			  0, 1, 0  // up vector
+		);
 
 
 
 	//TODO Player help when stuck by moving camera?
-	/* position and orient camera
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	gluLookAt(1, 1, 3, // eye position
-			  eyex, near, 0, // reference point
-			  0, 1, 0  // up vector
-		);
-	*/
+	// position and orient camera
+
+
+
+	glColor3f(0.9f, 0.9f, 0.9f);
+	glBegin(GL_QUADS);
+		glVertex3f(-100.0f, 0.0f, -100.0f);
+		glVertex3f(-100.0f, 0.0f,  100.0f);
+		glVertex3f( 100.0f, 0.0f,  100.0f);
+		glVertex3f( 100.0f, 0.0f, -100.0f);
+	glEnd();
 
 	//glRotatef(g_angle, 0, 1, 0);
-	glLoadIdentity();
-	glRotatef(pitch, 1.0f, 0.0f, 0.0f);
-	glRotatef(yaw, 0.0f, 1.0f, 0.0f);
-	glRotatef(roll, 0.0f, 0.0f, 1.0f);
-	glTranslatef(-x, -y, -z);
-
 
 	if (glIsProgram(g_program_obj))
 		glUniform1i(v_toggle_loc, true); // turn on vertex rotation
 
-	glBegin(GL_QUADS);                // Begin drawing the color cube with 6 quads
-      // Top face (y = 1.0f)
-      // Define vertices in counter-clockwise (CCW) order with normal pointing out
-      glColor3f(0.0f, 1.0f, 0.0f);     // Green
-      glVertex3f( 1.0f, 1.0f, -1.0f);
-      glVertex3f(-1.0f, 1.0f, -1.0f);
-      glVertex3f(-1.0f, 1.0f,  1.0f);
-      glVertex3f( 1.0f, 1.0f,  1.0f);
-
-      // Bottom face (y = -1.0f)
-      glColor3f(1.0f, 0.5f, 0.0f);     // Orange
-      glVertex3f( 1.0f, -1.0f,  1.0f);
-      glVertex3f(-1.0f, -1.0f,  1.0f);
-      glVertex3f(-1.0f, -1.0f, -1.0f);
-      glVertex3f( 1.0f, -1.0f, -1.0f);
-
-      // Front face  (z = 1.0f)
-      glColor3f(1.0f, 0.0f, 0.0f);     // Red
-      glVertex3f( 1.0f,  1.0f, 1.0f);
-      glVertex3f(-1.0f,  1.0f, 1.0f);
-      glVertex3f(-1.0f, -1.0f, 1.0f);
-      glVertex3f( 1.0f, -1.0f, 1.0f);
-
-      // Back face (z = -1.0f)
-      glColor3f(1.0f, 1.0f, 0.0f);     // Yellow
-      glVertex3f( 1.0f, -1.0f, -1.0f);
-      glVertex3f(-1.0f, -1.0f, -1.0f);
-      glVertex3f(-1.0f,  1.0f, -1.0f);
-      glVertex3f( 1.0f,  1.0f, -1.0f);
-
-      // Left face (x = -1.0f)
-      glColor3f(0.0f, 0.0f, 1.0f);     // Blue
-      glVertex3f(-1.0f,  1.0f,  1.0f);
-      glVertex3f(-1.0f,  1.0f, -1.0f);
-      glVertex3f(-1.0f, -1.0f, -1.0f);
-      glVertex3f(-1.0f, -1.0f,  1.0f);
-
-      // Right face (x = 1.0f)
-      glColor3f(1.0f, 0.0f, 1.0f);     // Magenta
-      glVertex3f(1.0f,  1.0f, -1.0f);
-      glVertex3f(1.0f,  1.0f,  1.0f);
-      glVertex3f(1.0f, -1.0f,  1.0f);
-      glVertex3f(1.0f, -1.0f, -1.0f);
-   glEnd();  // End of drawing color-cube
-
+	//wall(0.1, -0.1, 0.1, -0.1, 0.01f, -0.01f);
+//
 	if(glIsProgram(g_program_obj))
 		glUniform1i(v_toggle_loc, false); // turn off vertex rotation
 
 	//glColor3f(0.8f, 0.8f, 0.8f);
 	//glutWireCube(1.0f);
 
+	//TODO Draw the maze here
+	int a[6][6] = {
+	   {0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 0 */
+	   {0, 2, 0, 2, 0, 0} ,   /*  initializers for row indexed by 1 */
+	   {0, 2, 0, 2, 2, 0} ,  /*  initializers for row indexed by 2 */
+	   {0, 2, 2, 2, 0, 0} ,
+	   {0, 0, 2, 0, 0, 0},
+	   {0, 0, 2, 0, 0, 0}
+	};
+	//int xcomponent;
+	int count = 0;
+	for(int i = -3; i < 3; i++) {
+		//xcomponent = 1;
+		for(int j=-3; j < 3; j++) {
+
+			if (a[i][j] == 0) {
+				glPushMatrix();
+				glTranslatef(2*i, 0, j*2);
+				wall(1, -1, 1, -1, 1, -1);
+
+				//glPopMatrix();
+				//glPushMatrix();
+
+				//wall(0.1f, -0.1f, 1, -1, 1, -1);
+				glPopMatrix();
+							count++;
+			} else {
+				glPushMatrix();
+				glTranslatef(2*i, 0, j*2);
+				glutSolidCube(1);
+			}
+			//x++;
+
+		}
+
+	}
+	/*glPushMatrix();
+				glTranslatef(0, 0, 0);
+				wall(1, -1, 1, -1, 1, -1);
+
+			glPopMatrix();
+				glPushMatrix();
+
+glTranslatef(3.5, 0, 0);
+				wall(1, -1, 1, -1, 1, -1);
+				glPopMatrix();
+*/				std::cerr << "I have drawn a wall oh great master"<< count <<std::endl;
 	glutSwapBuffers();
 }
 
@@ -231,7 +250,7 @@ void reshape(int w, int h)
 	glViewport(0, 0, w, h);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(40.0, 1.0f, 1.0, 5.0);
+	gluPerspective(45.0, 1.0f, 0.1f, 100.0f);
 
 	glutPostRedisplay();
 }
@@ -380,11 +399,11 @@ void init(int argc, char* argv[])
 
 	}
 
-	glMatrixMode (GL_PROJECTION);
-	glEnable(GL_DEPTH_TEST);
-	glLoadIdentity ();
+	//glMatrixMode (GL_PROJECTION);
+	//glEnable(GL_DEPTH_TEST);
+	//glLoadIdentity ();
 
-	glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
+	//glOrtho(-1.0, 1.0, -1.0, 1.0, -3.0, 1.0);
 
 	glEnable(GL_DEPTH_TEST);
 }
@@ -398,7 +417,7 @@ int main(int argc, char* argv[])
 	glutInitWindowSize(512, 512);
 	glutInitWindowPosition(50, 50);
 
-	glutCreateWindow("Uniform Test");
+	glutCreateWindow("3D Maze");
 
 #ifndef __APPLE__
 	GLenum err = glewInit();
