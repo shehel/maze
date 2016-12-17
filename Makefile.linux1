@@ -3,7 +3,7 @@ INCDIRS= -I$(GLEWPATH)/include
 LIBDIRS= -L/usr/X11R6/lib -L$(GLEWPATH)/lib
 LDLIBS = -lGLEW -lglut -lGLU -lGL -lX11 -lpthread -lXrandr -lXi
 
-CPPFLAGS= $(INCDIRS) -O3 
+CPPFLAGS= $(INCDIRS) -O3
 LDFLAGS= $(CPPFLAGS) $(LIBDIRS) -Wl,-rpath,$(GLEWPATH)/lib
 
 TARGETS = main

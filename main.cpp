@@ -26,10 +26,13 @@ float angle=0.0;
 // actual vector representing the camera's direction
 float lx=0.0f,lz=-1.0f;
 // XZ position of the camera
-float x=0.0f,z=5.0f, y = 1;
-float tilt = 1;
+float x=0.0f,z=5.0f, y = 0;
+float tilt = 0;
 
-
+// Tracking the key states. These variables will be zero
+//when no key is being presses
+float deltaAngle = 0.0f;
+float deltaMove = 0;
 
 unsigned int g_program_obj = 0;
 unsigned int g_vertex_obj = 0;
@@ -81,6 +84,36 @@ void wall(float x1, float x2, float y1, float y2, float z1, float z2){
 	glEnd();
 }
 
+void drawFloor(GLfloat x1, GLfloat x2, GLfloat z1, GLfloat z2)
+{
+    //glBindTexture ( GL_TEXTURE_2D, texture );
+    glBegin(GL_POLYGON);
+	glColor3f(0.9f, 0.9f, 0.9f);
+        glNormal3f( 0.0, 1.0, 0.0);
+        glTexCoord2f(0,0);
+        glVertex3f( x1, -1, z2 );
+        glTexCoord2f(1,0);
+        glVertex3f( x2, -1, z2 );
+        glTexCoord2f(1,1);
+        glVertex3f( x2, -1, z1 );
+        glTexCoord2f(0,1);
+        glVertex3f( x1, -1, z1 );
+    glEnd();
+
+}
+
+void computePos(float deltaMove) {
+
+	x += deltaMove * lx * 0.1f;
+	z += deltaMove * lz * 0.1f;
+}
+
+void computeDir(float deltaAngle) {
+
+	angle += deltaAngle;
+	lx = sin(angle);
+	lz = -cos(angle);
+}
 
 void idle()
 {
@@ -112,7 +145,7 @@ void idle()
 
 void keyboard(unsigned char key, int, int)
 {
-	float fraction = 1;
+	float fraction = 0.1;
 	//std::cerr << "\t you pressed the " << key << " key" << std::endl;
 	//std::cerr << "\t x coordinate: " << x << " y coordinate: " << y << std::endl;
 
@@ -158,6 +191,12 @@ void keyboard(unsigned char key, int, int)
 
 void display()
 {
+	if (deltaMove)
+		computePos(deltaMove);
+	if (deltaAngle)
+		computeDir(deltaAngle);
+
+
 	glMatrixMode(GL_MODELVIEW);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
@@ -173,7 +212,7 @@ void display()
 	// position and orient camera
 
 
-
+	/*
 	glColor3f(0.9f, 0.9f, 0.9f);
 	glBegin(GL_QUADS);
 		glVertex3f(-100.0f, 0.0f, -100.0f);
@@ -181,7 +220,7 @@ void display()
 		glVertex3f( 100.0f, 0.0f,  100.0f);
 		glVertex3f( 100.0f, 0.0f, -100.0f);
 	glEnd();
-
+	*/
 	//glRotatef(g_angle, 0, 1, 0);
 
 	if (glIsProgram(g_program_obj))
@@ -199,33 +238,39 @@ void display()
 	int a[6][6] = {
 	   {0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 0 */
 	   {0, 2, 0, 2, 0, 0} ,   /*  initializers for row indexed by 1 */
-	   {0, 2, 0, 2, 2, 0} ,  /*  initializers for row indexed by 2 */
-	   {0, 2, 2, 2, 0, 0} ,
-	   {0, 0, 2, 0, 0, 0},
+	   {0, 0, 2, 2, 2, 0} ,  /*  initializers for row indexed by 2 */
+	   {0, 2, 2, 2, 2, 2} ,
+	   {0, 0, 2, 0, 0, 2},
 	   {0, 0, 2, 0, 0, 0}
 	};
+
 	//int xcomponent;
 	int count = 0;
+	int icorrect;
+	int jcorrect;
 	for(int i = -3; i < 3; i++) {
 		//xcomponent = 1;
+		icorrect = i + 3;
 		for(int j=-3; j < 3; j++) {
-
-			if (a[i][j] == 0) {
+			jcorrect = j + 3;
+			std::cerr << a[i][j] <<std::endl;
+			if (a[icorrect][jcorrect] == 0) {
 				glPushMatrix();
 				glTranslatef(2*i, 0, j*2);
 				wall(1, -1, 1, -1, 1, -1);
 
 				//glPopMatrix();
 				//glPushMatrix();
-
 				//wall(0.1f, -0.1f, 1, -1, 1, -1);
 				glPopMatrix();
 							count++;
 			} else {
 				glPushMatrix();
 				glTranslatef(2*i, 0, j*2);
-				glutSolidCube(1);
+				drawFloor(1, -1, 1, -1);
+				glPopMatrix();
 			}
+
 			//x++;
 
 		}
@@ -241,7 +286,7 @@ void display()
 glTranslatef(3.5, 0, 0);
 				wall(1, -1, 1, -1, 1, -1);
 				glPopMatrix();
-*/				std::cerr << "I have drawn a wall oh great master"<< count <<std::endl;
+*/
 	glutSwapBuffers();
 }
 
