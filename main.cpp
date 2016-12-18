@@ -6,9 +6,6 @@
 #endif
 
 #include <iostream>
-
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -16,6 +13,7 @@
 #include <unistd.h>
 #include <math.h>
 
+#include "load_and_bind_texture.h"
 
 float cameraMoveSpeed = 0.1f;
 
@@ -40,57 +38,92 @@ unsigned int g_program_obj = 0;
 unsigned int g_vertex_obj = 0;
 unsigned int g_fragment_obj = 0;
 
-int g_ticks = 0; // keeps couting
-int v_ticks_loc = 0; // location of ticker in vertex shader
-int v_toggle_loc = 0; // location of action toggle flag
+unsigned int g_wall = 0;
+unsigned int g_ground = 1;
 
 void reshape(int w, int h)
 {
+	// Prevent a divide by zero, when window is too short
+	// (you cant make a window of zero width).
+	if (h == 0)
+		h = 1;
 
+	float ratio =  w * 1.0 / h;
+
+	// Use the Projection Matrix
 	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	gluPerspective(45.0, 1.0f, 0.1f, 100.0f);
 
-	glutPostRedisplay();
+	// Reset Matrix
+	glLoadIdentity();
+
+	// Set the viewport to be the entire window
+	glViewport(0, 0, w, h);
+
+	// Set the correct perspective.
+	gluPerspective(45.0f, ratio, 0.1f, 100.0f);
+
+	// Get Back to the Modelview
+
 }
 
 
 void wall(float x1, float x2, float y1, float y2, float z1, float z2){
 	glBegin(GL_QUADS);
+	glColor4f(1, 1, 1, 1);
 
-	glColor3f(8.3, 0.2, 0.0);
+	glBindTexture ( GL_TEXTURE_2D, g_wall);
+
+	//Frontside
+	glTexCoord2f(0,0);
 	glVertex3f(x1, y1, z1);
+        glTexCoord2f(1,0);
 	glVertex3f(x2, y1, z1);
-	glColor3f(1.3, 7.2, 0.0);
+	glTexCoord2f(1,1);
 	glVertex3f(x2, y2, z1);
+	glTexCoord2f(0,1);
 	glVertex3f(x1, y2, z1);
 
-	glColor3f(0.3, 9.2, 2.0);
+
+	//Backside
+	glTexCoord2f(0,0);
 	glVertex3f(x1, y1, z2);
+	glTexCoord2f(1,0);
 	glVertex3f(x2, y1, z2);
-	glColor3f(1.3, 0.2, 9.0);
+	glTexCoord2f(1,1);
 	glVertex3f(x2, y2, z2);
+	glTexCoord2f(0,1);
 	glVertex3f(x1, y2, z2);
 
-	glColor3f(0.3, 7.2, 0.0);
+
+	//Top
+	glTexCoord2f(0,0);
 	glVertex3f(x1, y2, z1);
+	glTexCoord2f(1,0);
 	glVertex3f(x2, y2, z1);
-	glColor3f(0.3, 0.2, 9.0);
+	glTexCoord2f(1,1);
 	glVertex3f(x2, y2, z2);
+	glTexCoord2f(0,1);
 	glVertex3f(x1, y2, z2);
 
-	glColor3f(0.3, 0.2, 8.0);
+	//Rightside
+	glTexCoord2f(0,0);
 	glVertex3f(x1, y1, z1);
+	glTexCoord2f(1,0);
 	glVertex3f(x1, y2, z1);
-	glColor3f(8.3, 0.2, 2.0);
+	glTexCoord2f(1,1);
 	glVertex3f(x1, y2, z2);
+	glTexCoord2f(0,1);
 	glVertex3f(x1, y1, z2);
 
-	glColor3f(0.3, 0.2, 8.0);
+
+	//Leftside
+	glTexCoord2f(0,0);
 	glVertex3f(x2, y1, z1);
+	glTexCoord2f(1,0);
 	glVertex3f(x2, y2, z1);
-	glColor3f(9.3, 0.2, 0.0);
+	glTexCoord2f(1,1);
 	glVertex3f(x2, y2, z2);
+	glTexCoord2f(0,1);
 	glVertex3f(x2, y1, z2);
 
 	glEnd();
@@ -98,17 +131,21 @@ void wall(float x1, float x2, float y1, float y2, float z1, float z2){
 
 void drawFloor(GLfloat x1, GLfloat x2, GLfloat z1, GLfloat z2)
 {
-    //glBindTexture ( GL_TEXTURE_2D, texture );
-    glBegin(GL_POLYGON);
+    glBindTexture ( GL_TEXTURE_2D, g_wall);
+		//glColor4f(1, 1, 1, 1);
 	glColor3f(0.9f, 0.9f, 0.9f);
-        glNormal3f( 0.0, 1.0, 0.0);
-        glTexCoord2f(0,0);
+        glNormal3f( 1.0, 1.0, 0.0);
+        	glTexCoord2f(0,0);
+        //glMultiTexCoord2i(GL_TEXTURE0,0,0);
         glVertex3f( x1, -1, z2 );
-        glTexCoord2f(1,0);
+        	glTexCoord2f(1,0);
+        //glMultiTexCoord2i(GL_TEXTURE0,1,0);
         glVertex3f( x2, -1, z2 );
-        glTexCoord2f(1,1);
+        	glTexCoord2f(1,1);
+        //glMultiTexCoord2i(GL_TEXTURE0,1,1);
         glVertex3f( x2, -1, z1 );
-        glTexCoord2f(0,1);
+        	glTexCoord2f(0,1);
+        //glMultiTexCoord2i(GL_TEXTURE0,0,1);
         glVertex3f( x1, -1, z1 );
     glEnd();
 
@@ -166,7 +203,7 @@ void display(void)
 
  	glBegin(GL_TRIANGLES);
 
-        glColor3f(1, 0, 0);
+        glColor3f(0, 1, 0);
 
         glVertex3f(0.5f, 0, 0.5f);
         glVertex3f(-0.5f, 0, 0.5f);
@@ -193,11 +230,11 @@ void display(void)
 	};
 
 	//int xcomponent;
-	int count = 0;
+
 	int icorrect;
 	int jcorrect;
 	for(int i = -3; i < 3; i++) {
-		//xcomponent = 1;
+
 		icorrect = i + 3;
 		for(int j=-3; j < 3; j++) {
 			jcorrect = j + 3;
@@ -205,17 +242,24 @@ void display(void)
 			if (a[icorrect][jcorrect] == 0) {
 				glPushMatrix();
 				glTranslatef(2*i, 0, j*2);
+
 				wall(1, -1, 1, -1, 1, -1);
 
-				//glPopMatrix();
-				//glPushMatrix();
-				//wall(0.1f, -0.1f, 1, -1, 1, -1);
+				//glActiveTexture(GL_TEXTURE1);
+				//glDisable(GL_TEXTURE_2D);
 				glPopMatrix();
-							count++;
+
 			} else {
 				glPushMatrix();
 				glTranslatef(2*i, 0, j*2);
+
+
+				//glActiveTexture(GL_TEXTURE0);
+				//glBindTexture(GL_TEXTURE_2D, g_wall);
+
 				drawFloor(1, -1, 1, -1);
+
+				//glDisable(GL_TEXTURE_2D);
 				glPopMatrix();
 			}
 		}
@@ -282,14 +326,19 @@ void mouseMove(int x, int y) {
 		lx = sin(angle + deltaAngle);
 		lz = -cos(angle + deltaAngle);
 
-
-
-
-
-
-
-
 }
+
+
+void load_and_bind_textures()
+{
+	// load all textures here
+	g_wall = load_and_bind_texture("./crate.png");
+	g_ground = load_and_bind_texture("./tile.png");
+}
+
+
+
+
 int main(int argc, char **argv) {
 
 	// init GLUT and create window
@@ -318,8 +367,12 @@ int main(int argc, char **argv) {
 	// OpenGL init
 	glEnable(GL_DEPTH_TEST);
 
-	//g_the_tex = load_and_bind_texture("./walls.png");
+	int max_texture_units = 0;
+    	glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_texture_units);
+    	fprintf(stderr, "Max texture units is %d\n", max_texture_units);
 
+	load_and_bind_textures();
+	glEnable(GL_TEXTURE_2D);
 	// enter GLUT event processing cycle
 	glutMainLoop();
 

@@ -95,7 +95,7 @@ int png_load(const char* file_name,
 
     // Allocate the image_data as a big block, to be given to opengl
     png_byte* image_data;
-    image_data = (png_byte*)malloc(rowbytes * temp_height * sizeof(png_byte)+15);
+    image_data = new png_byte[rowbytes * temp_height];
     if (image_data == NULL)
     {
         fprintf(stderr, "error: could not allocate memory for PNG image data\n");
@@ -105,7 +105,7 @@ int png_load(const char* file_name,
     }
 
     // row_pointers is for pointing to image_data for reading the png with libpng
-    png_bytep* row_pointers = (png_bytep*)malloc(temp_height * sizeof(png_bytep));
+    png_bytep* row_pointers = new png_bytep[temp_height];
     if (row_pointers == NULL)
     {
         fprintf(stderr, "error: could not allocate memory for PNG row pointers\n");
@@ -131,10 +131,11 @@ int png_load(const char* file_name,
     //free(image_data);
 	*image_data_ptr = (char*)image_data; // return data pointer
 
-    free(row_pointers);
+	delete[] row_pointers;
     fclose(fp);
 
-	fprintf(stderr, "\t texture image size is %d x %d\n", *width, *height);
+	fprintf(stderr, "\t texture image '%s' size is %d x %d\n", file_name, 
+				*width, *height);
 
 	return 1;
 }
