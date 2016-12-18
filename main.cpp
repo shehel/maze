@@ -20,6 +20,7 @@ bool g_spinning = false;
 int g_angle = 0;
 float eyex = 1;
 float near = -3.0f;
+float cameraMoveSpeed = 0.1f;
 
 // angle of rotation for the camera direction
 float angle=0.0;
@@ -32,7 +33,8 @@ float tilt = 0;
 // Tracking the key states. These variables will be zero
 //when no key is being presses
 float deltaAngle = 0.0f;
-float deltaMove = 0;
+float deltaX = 0;
+float deltaY = 0;
 
 int xOrigin=256;
 
@@ -46,7 +48,7 @@ int v_toggle_loc = 0; // location of action toggle flag
 
 void reshape(int w, int h)
 {
-	glViewport(0, 0, w, h);
+
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	gluPerspective(45.0, 1.0f, 0.1f, 100.0f);
@@ -114,10 +116,19 @@ void drawFloor(GLfloat x1, GLfloat x2, GLfloat z1, GLfloat z2)
 
 }
 
-void computePos(float deltaMove) {
+void computePos(float deltaX, float deltaY) {
 
-	x += deltaMove * lx * 0.1f;
-	z += deltaMove * lz * 0.1f;
+	//x += deltaMove * lx * 0.1f;
+	//z += deltaMove * lz * 0.1f;
+
+	x += deltaX * lx * cameraMoveSpeed;
+	z += deltaX * lz * cameraMoveSpeed;
+
+	float rightX = -lz;
+	float rightZ = lx;
+
+	x += deltaY * rightX * cameraMoveSpeed;
+	z += deltaY * rightZ * cameraMoveSpeed;
 }
 
 /*void computeDir(float deltaAngle) {
@@ -137,8 +148,8 @@ void idle()
 
 void display(void)
 {
-	if (deltaMove)
-		computePos(deltaMove);
+	if (deltaX || deltaY)
+		computePos(deltaX, deltaY);
 
 
 
@@ -150,8 +161,19 @@ void display(void)
 			  x+lx, y, z+lz, // reference point
 			  0, 1, 0  // up vector
 		);
+	glPushMatrix();
+	glTranslatef(x+lx, -0.99, z+lz);
 
 
+ 	glBegin(GL_TRIANGLES);
+
+        glColor3f(1, 0, 0);
+
+        glVertex3f(0.5f, 0, 0.5f);
+        glVertex3f(-0.5f, 0, 0.5f);
+        glVertex3f(0, 0, -0.5f);
+        glEnd();
+	glPopMatrix();
 
 	//TODO Player help when stuck by moving camera?
 	// position and orient camera
@@ -199,6 +221,10 @@ void display(void)
 			}
 		}
 	}
+
+
+
+
 	glutSwapBuffers();
 }
 
@@ -209,8 +235,16 @@ void pressKey(unsigned char key, int xx, int yy) {
 				std::cerr << key <<std::endl;
 	switch (key) {
 
-		case 'w' : deltaMove = 0.5f; break;
-		case 's' : deltaMove = -0.5f; break;
+		case 'z': tilt = tilt + 25;
+			break;
+		case 'x': tilt = 0;
+			break;
+
+		case 'w' : deltaX = 0.5f; break;
+		case 's' : deltaX = -0.5f; break;
+		case 'd' : deltaY = 0.5f; break;
+		case 'a' : deltaY = -0.5f; break;
+
 
 	}
 }
@@ -220,37 +254,36 @@ void releaseKey(unsigned char key, int x, int y) {
 	switch (key) {
 
 		case 'w' :
-		case 's' : deltaMove = 0;break;
+		case 's' : deltaX = 0;break;
+		case 'a' :
+		case 'd' : deltaY = 0;break;
+
 	}
 }
 
 void mouseButton(int button, int state, int x, int y) {
 
-	// only start motion if the left button is pressed
-	if (button == GLUT_LEFT_BUTTON) {
 
-		// when the button is released
-		if (state == GLUT_UP) {
-			angle -= deltaAngle;
-			xOrigin = -1;
-		}
-		else {// state = GLUT_DOWN
-			xOrigin = x;
-		}
-	}
 }
+
 
 void mouseMove(int x, int y) {
 
 
 
-	if (xOrigin >= 0) {
-		std::cerr << "ALl Eyes" << xOrigin <<std::endl;
-		deltaAngle = (x - xOrigin) * 0.005f;
+		std::cerr << "xOrigin " << xOrigin << " x "<< x << std::endl;
+		deltaAngle = (x - xOrigin) * 0.007f;
 
 		lx = sin(angle + deltaAngle);
 		lz = -cos(angle + deltaAngle);
-	}
+
+
+
+
+
+
+
+
 }
 int main(int argc, char **argv) {
 
@@ -275,8 +308,8 @@ int main(int argc, char **argv) {
 	//Mouse Callbacks
 	glutMouseFunc(mouseButton);
 	glutPassiveMotionFunc(mouseMove);
-	 glutSetCursor(GLUT_CURSOR_NONE);
-
+	//glutSetCursor(GLUT_CURSOR_NONE);
+	glutWarpPointer(256,256);
 	// OpenGL init
 	glEnable(GL_DEPTH_TEST);
 
