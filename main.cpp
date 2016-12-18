@@ -16,10 +16,7 @@
 #include <unistd.h>
 #include <math.h>
 
-bool g_spinning = false;
-int g_angle = 0;
-float eyex = 1;
-float near = -3.0f;
+
 float cameraMoveSpeed = 0.1f;
 
 // angle of rotation for the camera direction
@@ -32,6 +29,7 @@ float tilt = 0;
 
 // Tracking the key states. These variables will be zero
 //when no key is being presses
+float turnAngle = 0;
 float deltaAngle = 0.0f;
 float deltaX = 0;
 float deltaY = 0;
@@ -164,6 +162,7 @@ void display(void)
 	glPushMatrix();
 	glTranslatef(x+lx, -0.99, z+lz);
 
+	glRotatef(turnAngle, 0, 1, 0);
 
  	glBegin(GL_TRIANGLES);
 
@@ -270,10 +269,16 @@ void mouseButton(int button, int state, int x, int y) {
 void mouseMove(int x, int y) {
 
 
-
-		std::cerr << "xOrigin " << xOrigin << " x "<< x << std::endl;
-		deltaAngle = (x - xOrigin) * 0.007f;
-
+		turnAngle = -1 * (x - xOrigin);
+		if (turnAngle>0){
+			turnAngle = turnAngle + 10;
+		} else if (turnAngle<0)
+			turnAngle = turnAngle - 10;
+		else
+			turnAngle = 0;
+		//std::cerr << "xOrigin " << xOrigin << " x "<< x << std::endl;
+		deltaAngle = (x - xOrigin) * 0.02f;
+		std::cerr << "Angle " << (x-xOrigin)*1 << std::endl;
 		lx = sin(angle + deltaAngle);
 		lz = -cos(angle + deltaAngle);
 
@@ -312,6 +317,8 @@ int main(int argc, char **argv) {
 	glutWarpPointer(256,256);
 	// OpenGL init
 	glEnable(GL_DEPTH_TEST);
+
+	//g_the_tex = load_and_bind_texture("./walls.png");
 
 	// enter GLUT event processing cycle
 	glutMainLoop();
