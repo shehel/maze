@@ -11,13 +11,15 @@
 #include <stddef.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <vector>
+#include <cmath>
 #include <math.h>
 
 #include "load_and_bind_texture.h"
 
 float cameraMoveSpeed = 0.1f;
 
-bool first = true;
+
 // angle of rotation for the camera direction
 float angle=0.0;
 // actual vector representing the camera's direction
@@ -25,6 +27,7 @@ float lx=0.0f,lz=-1.0f;
 // XZ position of the camera
 float x=0.0f,z=5.0f, y = 0;
 float tilt = 0;
+
 
 // Tracking the key states. These variables will be zero
 //when no key is being presses
@@ -41,6 +44,30 @@ unsigned int g_fragment_obj = 0;
 
 unsigned int g_wall = 0;
 unsigned int g_ground = 1;
+
+struct wall
+{
+	unsigned int tex; // texture handle
+	float position[3]; // world coordinate
+};
+
+std::vector<wall> walls; // a number of particles
+
+
+int a[12][12] = {
+	   {2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0} ,   /*  initializers for row indexed by 0 */
+	   {2, 2, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 1 */
+	   {2, 2, 2, 2, 2, 0, 0, 0, 0, 2, 0, 0} ,  /*  initializers for row indexed by 2 */
+	   {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0} ,
+	   {0, 0, 2, 2, 0, 2, 0, 0, 0, 2, 0, 0},
+	   {0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 0 */
+	   {0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 1 */
+	   {0, 0, 2, 2, 2, 0, 0, 0, 0, 2, 0, 0} ,  /*  initializers for row indexed by 2 */
+	   {0, 2, 2, 2, 2, 2, 0, 0, 0, 2, 0, 0} ,
+	   {0, 0, 2, 0, 0, 2, 0, 0, 0, 2, 0, 0},
+	   {0, 0, 2, 2, 0, 0, 0, 0, 0, 2, 0, 0},
+	   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+};
 
 void reshape(int w, int h)
 {
@@ -68,7 +95,7 @@ void reshape(int w, int h)
 }
 
 
-void wall(float x1, float x2, float y1, float y2, float z1, float z2){
+void drawWall(float x1, float x2, float y1, float y2, float z1, float z2){
 	glBindTexture ( GL_TEXTURE_2D, g_wall);
 	glBegin(GL_QUADS);
 	glColor4f(1, 1, 1, 1);
@@ -83,7 +110,7 @@ void wall(float x1, float x2, float y1, float y2, float z1, float z2){
 	glVertex3f(x1, y2, z1);
 
 
-	//Backside
+	//Leftside
 	glTexCoord2f(0,0);
 	glVertex3f(x1, y1, z2);
 	glTexCoord2f(1,0);
@@ -107,22 +134,22 @@ void wall(float x1, float x2, float y1, float y2, float z1, float z2){
 	//Rightside
 	glTexCoord2f(0,0);
 	glVertex3f(x1, y1, z1);
-	glTexCoord2f(1,0);
+	glTexCoord2f(0,1);
 	glVertex3f(x1, y2, z1);
 	glTexCoord2f(1,1);
 	glVertex3f(x1, y2, z2);
-	glTexCoord2f(0,1);
+	glTexCoord2f(1,0);
 	glVertex3f(x1, y1, z2);
 
 
 	//Leftside
 	glTexCoord2f(0,0);
 	glVertex3f(x2, y1, z1);
-	glTexCoord2f(1,0);
+	glTexCoord2f(0,1);
 	glVertex3f(x2, y2, z1);
 	glTexCoord2f(1,1);
 	glVertex3f(x2, y2, z2);
-	glTexCoord2f(0,1);
+	glTexCoord2f(1,0);
 	glVertex3f(x2, y1, z2);
 
 	glEnd();
@@ -148,9 +175,35 @@ void drawFloor(GLfloat x1, GLfloat x2, GLfloat z1, GLfloat z2)
 
 }
 
+bool checkCollision() {
+
+	float camWorldX = (x+lx)/2;
+	float camWorldY = (z+lz)/2;
+
+	int truncX = static_cast<int>(camWorldX);
+	int truncY = static_cast<int>(camWorldY);
+
+	int roundedY = round(camWorldY);
+	int roundedX = round(camWorldX);
+	std::cerr << camWorldX << " CamWorld " << camWorldY <<std::endl;
+	std::cerr << "Is it a wall? "  << a[roundedX][roundedY] <<std::endl;
+	if (a[roundedX][roundedY] == 0) {
+		if (camWorldX > truncX+0.5 || truncY > 1) {
+				std::cerr << "Worlds collide" <<std::endl;
+			return true;
+			}
+		else return false;
+	} else
+	 return false;
+
+
+
+}
+
 void computePos(float deltaX, float deltaY) {
 
-
+	float oldx = x;
+	float oldz = z;
 
 	x += deltaX * lx * cameraMoveSpeed;
 	z += deltaX * lz * cameraMoveSpeed;
@@ -160,19 +213,27 @@ void computePos(float deltaX, float deltaY) {
 
 	x += deltaY * rightX * cameraMoveSpeed;
 	z += deltaY * rightZ * cameraMoveSpeed;
+
+	if (checkCollision ()) {
+		x = oldx;
+		z = oldz;
+	}
 }
 
 void display(void)
 {
-	if (deltaX || deltaY)
+	if (deltaX || deltaY) {
 		computePos(deltaX, deltaY);
 
+	}
 
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_MODELVIEW);
 
 
 	glLoadIdentity();
+
+
 	gluLookAt(x, tilt, z, // eye position
 			  x+lx, y, z+lz, // reference point
 			  0, 1, 0  // up vector
@@ -190,23 +251,10 @@ void display(void)
 		glEnd();
 	glPopMatrix();
 
-	std::cerr << "x vava voom " << x+lx << " z for vava voom " << z+lz-1 <<std::endl;
 
 
-	int a[12][12] = {
-	   {0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,   /*  initializers for row indexed by 0 */
-	   {2, 2, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 1 */
-	   {2, 2, 2, 2, 2, 0, 0, 0, 0, 2, 0, 0} ,  /*  initializers for row indexed by 2 */
-	   {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0} ,
-	   {0, 0, 2, 2, 0, 2, 0, 0, 0, 2, 0, 0},
-	   {0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 0 */
-	   {0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 1 */
-	   {0, 0, 2, 2, 2, 0, 0, 0, 0, 2, 0, 0} ,  /*  initializers for row indexed by 2 */
-	   {0, 2, 2, 2, 2, 2, 0, 0, 0, 2, 0, 0} ,
-	   {0, 0, 2, 0, 0, 2, 0, 0, 0, 2, 0, 0},
-	   {0, 0, 2, 2, 0, 0, 0, 0, 0, 2, 0, 0},
-	   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	};
+
+
 	//int xcomponent;
 	int count=0;
 	int icorrect;
@@ -223,7 +271,7 @@ void display(void)
 				glPushMatrix();
 					glTranslatef(2*i, 0, j*2);
 					glEnable(GL_TEXTURE_2D);
-					wall(1, -1, 1, -1, 1, -1);
+					drawWall(1, -1, 1, -1, 1, -1);
 					glDisable(GL_TEXTURE_2D);
 				glPopMatrix();
 
@@ -245,17 +293,28 @@ void display(void)
 
 
 void pressKey(unsigned char key, int xx, int yy) {
-				std::cerr << key <<std::endl;
+
 	switch (key) {
 
 		case 'z': tilt = tilt + 25;
 			break;
 		case 'x': tilt = 0;
 			break;
-		case 'w' : deltaX = 0.5f; first = false; break;
-		case 's' : deltaX = -0.5f; break;
-		case 'd' : deltaY = 0.5f; break;
-		case 'a' : deltaY = -0.5f; break;
+		case 'w' :
+				deltaX = 0.5f;
+				break;
+
+		case 's' : //
+				deltaX = -0.5f;
+				break;
+
+		case 'd' : //
+				deltaY = 0.5f; break;
+				break;
+
+		case 'a' : //
+				deltaY = -0.5f; break;
+
 
 
 	}
@@ -282,18 +341,24 @@ void mouseButton(int button, int state, int x, int y) {
 void mouseMove(int x, int y) {
 
 
-		turnAngle = -1 * (x - xOrigin);
-		if (turnAngle>0){
-			turnAngle = turnAngle + 10;
-		} else if (turnAngle<0)
-			turnAngle = turnAngle - 10;
-		else
-			turnAngle = 0;
-		//std::cerr << "xOrigin " << xOrigin << " x "<< x << std::endl;
-		deltaAngle = (x - xOrigin) * 0.02f;
-		//std::cerr << "Angle " << (x-xOrigin)*1 << std::endl;
-		lx = sin(angle + deltaAngle);
-		lz = -cos(angle + deltaAngle);
+	turnAngle = -1 * (x - xOrigin);
+	if (turnAngle>0){
+		turnAngle = turnAngle + 10;
+	} else if (turnAngle<0)
+		turnAngle = turnAngle - 10;
+	else
+		turnAngle = 0;
+	//std::cerr << "xOrigin " << xOrigin << " x "<< x << std::endl;
+	deltaAngle = (x - xOrigin) * 0.02f;
+	//std::cerr << "Angle " << (x-xOrigin)*1 << std::endl;
+	lx = sin(angle + deltaAngle);
+	lz = -cos(angle + deltaAngle);
+
+}
+
+void initWalls() {
+
+
 
 }
 
@@ -341,9 +406,11 @@ int main(int argc, char **argv) {
     	fprintf(stderr, "Max texture units is %d\n", max_texture_units);
 
 	load_and_bind_textures();
+	initWalls();
 
 	// enter GLUT event processing cycle
 	glutMainLoop();
 
 	return 1;
 }
+

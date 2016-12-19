@@ -43,12 +43,12 @@ unsigned int load_and_bind_texture(const char* filename, const bool add_alpha=fa
 
 	// request one texture handle
 	unsigned int tex_handle = 0;
-	glGenTextures(1, &tex_handle); 
+	glGenTextures(1, &tex_handle);
 
 	// create a new texture object and bind it to tex_handle
   	glBindTexture(GL_TEXTURE_2D, tex_handle);
 
-	// so we can blend it 
+	// so we can blend it
   	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
   	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
   	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -58,13 +58,13 @@ unsigned int load_and_bind_texture(const char* filename, const bool add_alpha=fa
 	if (add_alpha)
 	{
 		image_buffer = add_alpha_channel(image_buffer, width, height);
-  		glTexImage2D(GL_TEXTURE_2D, 0, 
+  		glTexImage2D(GL_TEXTURE_2D, 0,
 				GL_RGBA, width, height, 0,
    		 		GL_RGBA, GL_UNSIGNED_BYTE, (GLvoid*)image_buffer);
 	}
 	else
 	{
-  		glTexImage2D(GL_TEXTURE_2D, 0, 
+  		glTexImage2D(GL_TEXTURE_2D, 0,
 				GL_RGB, width, height, 0,
    		 		GL_RGB, GL_UNSIGNED_BYTE, (GLvoid*)image_buffer);
 	}
@@ -72,7 +72,7 @@ unsigned int load_and_bind_texture(const char* filename, const bool add_alpha=fa
     glBindTexture(GL_TEXTURE_2D,0);
 
 	delete[] image_buffer; // free the image buffer memory
-	
+
 	return tex_handle;
 }
 
