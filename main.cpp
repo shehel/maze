@@ -17,6 +17,7 @@
 
 float cameraMoveSpeed = 0.1f;
 
+bool first = true;
 // angle of rotation for the camera direction
 float angle=0.0;
 // actual vector representing the camera's direction
@@ -68,11 +69,9 @@ void reshape(int w, int h)
 
 
 void wall(float x1, float x2, float y1, float y2, float z1, float z2){
+	glBindTexture ( GL_TEXTURE_2D, g_wall);
 	glBegin(GL_QUADS);
 	glColor4f(1, 1, 1, 1);
-
-	glBindTexture ( GL_TEXTURE_2D, g_wall);
-
 	//Frontside
 	glTexCoord2f(0,0);
 	glVertex3f(x1, y1, z1);
@@ -131,30 +130,27 @@ void wall(float x1, float x2, float y1, float y2, float z1, float z2){
 
 void drawFloor(GLfloat x1, GLfloat x2, GLfloat z1, GLfloat z2)
 {
-    glBindTexture ( GL_TEXTURE_2D, g_wall);
+	glBindTexture ( GL_TEXTURE_2D, g_ground);
+	glBegin(GL_POLYGON);
 		//glColor4f(1, 1, 1, 1);
-	glColor3f(0.9f, 0.9f, 0.9f);
-        glNormal3f( 1.0, 1.0, 0.0);
-        	glTexCoord2f(0,0);
-        //glMultiTexCoord2i(GL_TEXTURE0,0,0);
-        glVertex3f( x1, -1, z2 );
-        	glTexCoord2f(1,0);
-        //glMultiTexCoord2i(GL_TEXTURE0,1,0);
-        glVertex3f( x2, -1, z2 );
-        	glTexCoord2f(1,1);
-        //glMultiTexCoord2i(GL_TEXTURE0,1,1);
-        glVertex3f( x2, -1, z1 );
-        	glTexCoord2f(0,1);
-        //glMultiTexCoord2i(GL_TEXTURE0,0,1);
-        glVertex3f( x1, -1, z1 );
-    glEnd();
+		glColor3f(0.9f, 0.9f, 0.9f);
+		glNormal3f( 1.0, 1.0, 0.0);
+
+		glTexCoord2f(0,0);
+		glVertex3f( x1, -1, z2 );
+		glTexCoord2f(1,0);
+		glVertex3f( x2, -1, z2 );
+		glTexCoord2f(1,1);
+		glVertex3f( x2, -1, z1 );
+		glTexCoord2f(0,1);
+		glVertex3f( x1, -1, z1 );
+    	glEnd();
 
 }
 
 void computePos(float deltaX, float deltaY) {
 
-	//x += deltaMove * lx * 0.1f;
-	//z += deltaMove * lz * 0.1f;
+
 
 	x += deltaX * lx * cameraMoveSpeed;
 	z += deltaX * lz * cameraMoveSpeed;
@@ -166,108 +162,82 @@ void computePos(float deltaX, float deltaY) {
 	z += deltaY * rightZ * cameraMoveSpeed;
 }
 
-/*void computeDir(float deltaAngle) {
-
-	angle += deltaAngle;
-	lx = sin(angle);
-	lz = -cos(angle);
-}*/
-
-void idle()
-{
- bool post = false;
-
-}
-
-
-
 void display(void)
 {
 	if (deltaX || deltaY)
 		computePos(deltaX, deltaY);
 
 
-
-	glMatrixMode(GL_MODELVIEW);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+	glMatrixMode(GL_MODELVIEW);
+
 
 	glLoadIdentity();
 	gluLookAt(x, tilt, z, // eye position
 			  x+lx, y, z+lz, // reference point
 			  0, 1, 0  // up vector
 		);
+
 	glPushMatrix();
-	glTranslatef(x+lx, -0.99, z+lz);
+		glTranslatef(x+lx, -0.99, z+lz);
+		glRotatef(turnAngle, 0, 1, 0);
 
-	glRotatef(turnAngle, 0, 1, 0);
-
- 	glBegin(GL_TRIANGLES);
-
-        glColor3f(0, 1, 0);
-
-        glVertex3f(0.5f, 0, 0.5f);
-        glVertex3f(-0.5f, 0, 0.5f);
-        glVertex3f(0, 0, -0.5f);
-        glEnd();
+	 	glBegin(GL_TRIANGLES);
+			glColor3f(0, 1, 0);
+			glVertex3f(0.5f, 0, 0.5f);
+			glVertex3f(-0.5f, 0, 0.5f);
+			glVertex3f(0, 0, -0.5f);
+		glEnd();
 	glPopMatrix();
 
-	//TODO Player help when stuck by moving camera?
-	// position and orient camera
+	std::cerr << "x vava voom " << x+lx << " z for vava voom " << z+lz-1 <<std::endl;
 
 
-
-
-
-
-	//TODO Draw the maze here
-	int a[6][6] = {
-	   {0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 0 */
-	   {0, 2, 0, 2, 0, 0} ,   /*  initializers for row indexed by 1 */
-	   {0, 0, 2, 2, 2, 0} ,  /*  initializers for row indexed by 2 */
-	   {0, 2, 2, 2, 2, 2} ,
-	   {0, 0, 2, 0, 0, 2},
-	   {0, 0, 2, 0, 0, 0}
+	int a[12][12] = {
+	   {0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,   /*  initializers for row indexed by 0 */
+	   {2, 2, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 1 */
+	   {2, 2, 2, 2, 2, 0, 0, 0, 0, 2, 0, 0} ,  /*  initializers for row indexed by 2 */
+	   {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0} ,
+	   {0, 0, 2, 2, 0, 2, 0, 0, 0, 2, 0, 0},
+	   {0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 0 */
+	   {0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 1 */
+	   {0, 0, 2, 2, 2, 0, 0, 0, 0, 2, 0, 0} ,  /*  initializers for row indexed by 2 */
+	   {0, 2, 2, 2, 2, 2, 0, 0, 0, 2, 0, 0} ,
+	   {0, 0, 2, 0, 0, 2, 0, 0, 0, 2, 0, 0},
+	   {0, 0, 2, 2, 0, 0, 0, 0, 0, 2, 0, 0},
+	   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	};
-
 	//int xcomponent;
-
+	int count=0;
 	int icorrect;
 	int jcorrect;
-	for(int i = -3; i < 3; i++) {
+	for(int i = 0; i < 12; i++) {
 
-		icorrect = i + 3;
-		for(int j=-3; j < 3; j++) {
-			jcorrect = j + 3;
+		icorrect = 12;
+		for(int j=0; j < 12; j++) {
+
+			//jcorrect = j + 6;
+
 			//std::cerr << a[icorrect][jcorrect] <<std::endl;
-			if (a[icorrect][jcorrect] == 0) {
+			if (a[i][j] == 0) {
 				glPushMatrix();
-				glTranslatef(2*i, 0, j*2);
-
-				wall(1, -1, 1, -1, 1, -1);
-
-				//glActiveTexture(GL_TEXTURE1);
-				//glDisable(GL_TEXTURE_2D);
+					glTranslatef(2*i, 0, j*2);
+					glEnable(GL_TEXTURE_2D);
+					wall(1, -1, 1, -1, 1, -1);
+					glDisable(GL_TEXTURE_2D);
 				glPopMatrix();
 
 			} else {
 				glPushMatrix();
-				glTranslatef(2*i, 0, j*2);
-
-
-				//glActiveTexture(GL_TEXTURE0);
-				//glBindTexture(GL_TEXTURE_2D, g_wall);
-
-				drawFloor(1, -1, 1, -1);
-
-				//glDisable(GL_TEXTURE_2D);
+					glTranslatef(2*i, 0, j*2);
+					glEnable(GL_TEXTURE_2D);
+					drawFloor(1, -1, 1, -1);
+					glDisable(GL_TEXTURE_2D);
 				glPopMatrix();
 			}
+			count++;
 		}
 	}
-
-
-
-
 	glutSwapBuffers();
 }
 
@@ -282,8 +252,7 @@ void pressKey(unsigned char key, int xx, int yy) {
 			break;
 		case 'x': tilt = 0;
 			break;
-
-		case 'w' : deltaX = 0.5f; break;
+		case 'w' : deltaX = 0.5f; first = false; break;
 		case 's' : deltaX = -0.5f; break;
 		case 'd' : deltaY = 0.5f; break;
 		case 'a' : deltaY = -0.5f; break;
@@ -322,7 +291,7 @@ void mouseMove(int x, int y) {
 			turnAngle = 0;
 		//std::cerr << "xOrigin " << xOrigin << " x "<< x << std::endl;
 		deltaAngle = (x - xOrigin) * 0.02f;
-		std::cerr << "Angle " << (x-xOrigin)*1 << std::endl;
+		//std::cerr << "Angle " << (x-xOrigin)*1 << std::endl;
 		lx = sin(angle + deltaAngle);
 		lz = -cos(angle + deltaAngle);
 
@@ -332,7 +301,7 @@ void mouseMove(int x, int y) {
 void load_and_bind_textures()
 {
 	// load all textures here
-	g_wall = load_and_bind_texture("./crate.png");
+	g_wall = load_and_bind_texture("./help.png");
 	g_ground = load_and_bind_texture("./tile.png");
 }
 
@@ -372,7 +341,7 @@ int main(int argc, char **argv) {
     	fprintf(stderr, "Max texture units is %d\n", max_texture_units);
 
 	load_and_bind_textures();
-	glEnable(GL_TEXTURE_2D);
+
 	// enter GLUT event processing cycle
 	glutMainLoop();
 
