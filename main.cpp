@@ -15,6 +15,8 @@
 #include <cmath>
 #include <math.h>
 
+#include <string.h>
+
 #include "load_and_bind_texture.h"
 
 float cameraMoveSpeed = 0.1f;
@@ -36,6 +38,18 @@ float deltaAngle = 0.0f;
 float deltaX = 0;
 float deltaY = 0;
 
+float diffuse = 0.75;
+float specular = 1.0f;
+float exponent = 25.0f;
+float shininess = 50;
+float ambient = 0.1f;
+	float light_ambient[] = {ambient, ambient, ambient, 1.0};
+		float light_diffuse[] = {diffuse, diffuse, diffuse, 1.0};
+bool toggle = false;
+float light_position[] = {1.0, 1.0, 2.0, 0.0};
+float lighty = 2.0;
+float lightz = 2.0;
+
 int xOrigin=256;
 
 unsigned int g_program_obj = 0;
@@ -44,6 +58,110 @@ unsigned int g_fragment_obj = 0;
 
 unsigned int g_wall = 0;
 unsigned int g_ground = 1;
+
+unsigned int g_bitmap_text_handle = 0;
+struct materials_t
+{
+	float ambient[4];
+	float diffuse[4];
+	float specular[4];
+	float shininess;
+};
+struct light_t
+{
+	size_t name;
+	float ambient[4];
+	float diffuse[4];
+	float specular[4];
+	float position[4];
+};
+
+const materials_t white_shiny = {
+	{0.1f, 0.1f, 0.1f, 1.0f},
+	{0.5f, 0.5f, 0.5f, 1.0f},
+	{0.5f, 0.5f, 0.5f, 1.0f},
+	100.0f
+};
+
+light_t light_0 = {
+	GL_LIGHT0,
+	{0.11f, 0.1f, 0.1f, 1.0f},
+	{1, 0, 0, 1.0f},
+	{1, 0.5f, 0.5f, 1.0f},
+	{1.7, 0, 2, 1}
+
+};
+
+light_t light_1 = {
+	GL_LIGHT1,
+	{0.11f, 0.1f, 0.1f, 1.0f},
+	{1, 1, 1, 1.0f},
+	{0.5f, 0.5f, 0.5f, 1.0f},
+	{.65, 1, .714, 1}
+
+};
+
+light_t light_2 = {
+	GL_LIGHT2,
+	{0.0f, 0.0f, 0.0f, 1.0f},
+	{0.0f, 1.0f, 0.0f, 1.0f},
+	{0.0f, 0.0f, 1.0f, 1.0f},
+	{12, 0, 12, 1}
+
+};
+
+// properties of a given material
+void set_material(const materials_t& mat)
+{
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat.ambient);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat.diffuse);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat.specular);
+	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, mat.shininess);
+}
+
+// set a given light
+void set_light(const light_t& light, float x, float y)
+{
+
+			float position[4] = {x, 1, y, 1};
+			glLightfv(light.name, GL_AMBIENT, light.ambient);
+			glLightfv(light.name, GL_DIFFUSE, light.diffuse);
+			glLightfv(light.name, GL_SPECULAR, light.specular);
+			glLightfv(light.name, GL_POSITION, position);
+
+
+			//12 make the lights spot lights here if you want
+			float direction[3] = {
+						-light.position[0],
+						-light.position[1],
+						-light.position[2]};
+			glLightfv(light.name, GL_SPOT_DIRECTION, direction);
+			glLightf(light.name, GL_SPOT_CUTOFF, 180.0f);
+
+			glEnable(light.name);
+	//}
+}
+
+unsigned int make_bitmap_text()
+{
+	unsigned int handle_base = glGenLists(256);
+
+	for (size_t i=0;i<256;i++)
+	{
+		// a new list for each character
+		glNewList(handle_base+i, GL_COMPILE);
+			glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_10, i);
+		glEndList();
+	}
+	return handle_base;
+}
+
+void draw_text(const char* text)
+{
+	glListBase(g_bitmap_text_handle);
+	glCallLists(int(strlen(text)), GL_UNSIGNED_BYTE, text);
+}
+
 
 struct wall
 {
@@ -75,7 +193,6 @@ void reshape(int w, int h)
 	// (you cant make a window of zero width).
 	if (h == 0)
 		h = 1;
-
 	float ratio =  w * 1.0 / h;
 
 	// Use the Projection Matrix
@@ -99,7 +216,9 @@ void drawWall(float x1, float x2, float y1, float y2, float z1, float z2){
 	glBindTexture ( GL_TEXTURE_2D, g_wall);
 	glBegin(GL_QUADS);
 	glColor4f(1, 1, 1, 1);
-	//Frontside
+
+	//Rightside
+	glNormal3f(0, 0, 1);
 	glTexCoord2f(0,0);
 	glVertex3f(x1, y1, z1);
         glTexCoord2f(1,0);
@@ -111,6 +230,7 @@ void drawWall(float x1, float x2, float y1, float y2, float z1, float z2){
 
 
 	//Leftside
+	glNormal3f(0, 0, -1);
 	glTexCoord2f(0,0);
 	glVertex3f(x1, y1, z2);
 	glTexCoord2f(1,0);
@@ -122,6 +242,7 @@ void drawWall(float x1, float x2, float y1, float y2, float z1, float z2){
 
 
 	//Top
+	glNormal3f (0,1, 0);
 	glTexCoord2f(0,0);
 	glVertex3f(x1, y2, z1);
 	glTexCoord2f(1,0);
@@ -131,7 +252,8 @@ void drawWall(float x1, float x2, float y1, float y2, float z1, float z2){
 	glTexCoord2f(0,1);
 	glVertex3f(x1, y2, z2);
 
-	//Rightside
+	//Backside
+	glNormal3f (-1,0, 0);
 	glTexCoord2f(0,0);
 	glVertex3f(x1, y1, z1);
 	glTexCoord2f(0,1);
@@ -142,7 +264,8 @@ void drawWall(float x1, float x2, float y1, float y2, float z1, float z2){
 	glVertex3f(x1, y1, z2);
 
 
-	//Leftside
+	//Frontside
+	glNormal3f (-1,0, 0);
 	glTexCoord2f(0,0);
 	glVertex3f(x2, y1, z1);
 	glTexCoord2f(0,1);
@@ -159,6 +282,7 @@ void drawFloor(GLfloat x1, GLfloat x2, GLfloat z1, GLfloat z2)
 {
 	glBindTexture ( GL_TEXTURE_2D, g_ground);
 	glBegin(GL_POLYGON);
+		glNormal3f( 0.0, 1.0, 0.0);
 		//glColor4f(1, 1, 1, 1);
 		glColor3f(0.9f, 0.9f, 0.9f);
 		glNormal3f( 1.0, 1.0, 0.0);
@@ -238,22 +362,61 @@ void display(void)
 			  x+lx, y, z+lz, // reference point
 			  0, 1, 0  // up vector
 		);
-
+	//Map Blip Triangle
 	glPushMatrix();
 		glTranslatef(x+lx, -0.99, z+lz);
 		glRotatef(turnAngle, 0, 1, 0);
 
 	 	glBegin(GL_TRIANGLES);
+	 		glNormal3f (0,1, 0);
 			glColor3f(0, 1, 0);
 			glVertex3f(0.5f, 0, 0.5f);
 			glVertex3f(-0.5f, 0, 0.5f);
 			glVertex3f(0, 0, -0.5f);
 		glEnd();
 	glPopMatrix();
+	glDisable(GL_LIGHTING);
+	glPushMatrix();
+
+		// perform any transformations of light positions here
+		glPointSize(5.0f);
+		set_light(light_1, -2, -5);
+	glPopMatrix();
+	glEnable(GL_LIGHTING);
+	//Text
+	glPushMatrix();
+		glColor3f(1.0f, 1, 1);
+
+		glTranslatef(-2, 0, -5); // this will work
+		glRasterPos2i(0, 0); // centre the text
+		draw_text("Hello! The Maze starts here. Find the teapot.");
+	glPopMatrix();
 
 
+	glPushMatrix ();
+		glColor4f(1, 1, 1, 1);
+		glTranslatef(20, -0.5, 18);
+		glutSolidTeapot(0.8);
+	glPopMatrix ();
 
 
+	/*glDisable(GL_LIGHTING);
+					glPushMatrix();
+
+					// perform any transformations of light positions here
+					glRotatef(20, 0, 1, 0);
+					glPointSize(3.0f);
+					set_light(light_1);
+
+				glBegin(GL_POINTS);
+					glColor3f (1, 0, 0);
+					glVertex3fv(light_1.position);
+
+
+				glEnd();
+
+	glPopMatrix();
+	glEnable(GL_LIGHTING);*/
 
 	//int xcomponent;
 	int count=0;
@@ -275,6 +438,8 @@ void display(void)
 					glDisable(GL_TEXTURE_2D);
 				glPopMatrix();
 
+
+
 			} else {
 				glPushMatrix();
 					glTranslatef(2*i, 0, j*2);
@@ -282,8 +447,21 @@ void display(void)
 					drawFloor(1, -1, 1, -1);
 					glDisable(GL_TEXTURE_2D);
 				glPopMatrix();
+				glDisable(GL_LIGHTING);
+				glPushMatrix();
+
+					// perform any transformations of light positions here
+					glRotatef(0, 0, 1, 0);
+					glPointSize(3.0f);
+					set_light(light_1, 2*i, j*2);
+
+				glBegin(GL_POINTS);
+					glColor3f (1, 1, 1);
+					glVertex3f(2*i, 1, j*2);
+				glEnd();
+				glPopMatrix();
+				glEnable(GL_LIGHTING);
 			}
-			count++;
 		}
 	}
 	glutSwapBuffers();
@@ -370,7 +548,35 @@ void load_and_bind_textures()
 	g_ground = load_and_bind_texture("./tile.png");
 }
 
+void makeLightSource() {
+	float light_ambient[] = {0.1, 0.1, 0.1, 1.0};
+	float light_diffue[] = {0.5, 0.5, 0.5, 1.0};
+	glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);
 
+	// fix the light position
+
+	glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+
+	// enable lighting and turn on the light0
+	//glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+
+	// so that hidden surfaces are removed
+	glEnable(GL_DEPTH_TEST);
+
+	// mode of shading
+	glShadeModel(GL_SMOOTH); // can be GL_FLAT, GL_SMOOTH
+}
+
+void init() {
+
+
+	glEnable(GL_LIGHTING);
+	glEnable(GL_DEPTH_TEST);
+	glShadeModel(GL_SMOOTH);
+
+}
 
 
 int main(int argc, char **argv) {
@@ -407,6 +613,8 @@ int main(int argc, char **argv) {
 
 	load_and_bind_textures();
 	initWalls();
+	init();
+	g_bitmap_text_handle = make_bitmap_text();
 
 	// enter GLUT event processing cycle
 	glutMainLoop();
