@@ -21,20 +21,24 @@
 
 float cameraMoveSpeed = 0.1f;
 
-
+bool mapMode = false;
 // angle of rotation for the camera direction
 float angle=0.0;
 // actual vector representing the camera's direction
-float lx=0.0f,lz=-1.0f;
+float lx=0.0f,lz=-1.0f, ly=0;
 // XZ position of the camera
-float x=0.0f,z=5.0f, y = 0;
 float tilt = 0;
+float x=0.0f,z=5.0f, y = 0;
+
+float origTilt;
+float origLy;
 
 
 // Tracking the key states. These variables will be zero
 //when no key is being presses
 float turnAngle = 0;
 float deltaAngle = 0.0f;
+float deltaAngleY = 0.0f;
 float deltaX = 0;
 float deltaY = 0;
 
@@ -51,6 +55,7 @@ float lighty = 2.0;
 float lightz = 2.0;
 
 int xOrigin=256;
+int yOrigin=256;
 
 unsigned int g_program_obj = 0;
 unsigned int g_vertex_obj = 0;
@@ -123,7 +128,7 @@ void set_material(const materials_t& mat)
 void set_light(const light_t& light, float x, float y)
 {
 
-			float position[4] = {x, 1, y, 1};
+			float position[4] = {x, 2, y, 1};
 			glLightfv(light.name, GL_AMBIENT, light.ambient);
 			glLightfv(light.name, GL_DIFFUSE, light.diffuse);
 			glLightfv(light.name, GL_SPECULAR, light.specular);
@@ -132,9 +137,9 @@ void set_light(const light_t& light, float x, float y)
 
 			//12 make the lights spot lights here if you want
 			float direction[3] = {
-						-light.position[0],
-						-light.position[1],
-						-light.position[2]};
+						-position[0],
+						-position[1],
+						-position[2]};
 			glLightfv(light.name, GL_SPOT_DIRECTION, direction);
 			glLightf(light.name, GL_SPOT_CUTOFF, 180.0f);
 
@@ -350,26 +355,37 @@ void display(void)
 		computePos(deltaX, deltaY);
 
 	}
-
+	y = tilt+ly;
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_MODELVIEW);
 
 
 	glLoadIdentity();
 
-
+	if (mapMode) {
+		tilt = 75;
+		y  = 5;
+	}
 	gluLookAt(x, tilt, z, // eye position
 			  x+lx, y, z+lz, // reference point
 			  0, 1, 0  // up vector
 		);
 	//Map Blip Triangle
+	glDisable(GL_LIGHTING);
+	glPushMatrix();
+
+		// perform any transformations of light positions here
+		glPointSize(5.0f);
+		set_light(light_1, x+lx, z+lz);
+	glPopMatrix();
+	glEnable(GL_LIGHTING);
 	glPushMatrix();
 		glTranslatef(x+lx, -0.99, z+lz);
 		glRotatef(turnAngle, 0, 1, 0);
 
 	 	glBegin(GL_TRIANGLES);
 	 		glNormal3f (0,1, 0);
-			glColor3f(0, 1, 0);
+			glColor3f(1, 0, 0);
 			glVertex3f(0.5f, 0, 0.5f);
 			glVertex3f(-0.5f, 0, 0.5f);
 			glVertex3f(0, 0, -0.5f);
@@ -380,14 +396,14 @@ void display(void)
 
 		// perform any transformations of light positions here
 		glPointSize(5.0f);
-		set_light(light_1, -2, -5);
+		set_light(light_1, -2, -3);
 	glPopMatrix();
 	glEnable(GL_LIGHTING);
 	//Text
 	glPushMatrix();
-		glColor3f(1.0f, 1, 1);
+		glColor3f(1, 1, 1);
 
-		glTranslatef(-2, 0, -5); // this will work
+		glTranslatef(-2, 1, -3); // this will work
 		glRasterPos2i(0, 0); // centre the text
 		draw_text("Hello! The Maze starts here. Find the teapot.");
 	glPopMatrix();
@@ -474,7 +490,9 @@ void pressKey(unsigned char key, int xx, int yy) {
 
 	switch (key) {
 
-		case 'z': tilt = tilt + 25;
+		case 'z': mapMode = true;
+			origTilt = tilt;
+			origLy = ly;
 			break;
 		case 'x': tilt = 0;
 			break;
@@ -501,7 +519,10 @@ void pressKey(unsigned char key, int xx, int yy) {
 void releaseKey(unsigned char key, int x, int y) {
 
 	switch (key) {
-
+		case 'z': mapMode = false;
+			tilt = origTilt;
+			ly = origLy;
+			break;
 		case 'w' :
 		case 's' : deltaX = 0;break;
 		case 'a' :
@@ -528,10 +549,11 @@ void mouseMove(int x, int y) {
 		turnAngle = 0;
 	//std::cerr << "xOrigin " << xOrigin << " x "<< x << std::endl;
 	deltaAngle = (x - xOrigin) * 0.02f;
+	deltaAngleY = (y - yOrigin) * 0.02f;
 	//std::cerr << "Angle " << (x-xOrigin)*1 << std::endl;
 	lx = sin(angle + deltaAngle);
 	lz = -cos(angle + deltaAngle);
-
+	ly =  -sin(deltaAngleY);
 }
 
 void initWalls() {
