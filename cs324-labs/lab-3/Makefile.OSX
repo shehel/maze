@@ -1,0 +1,15 @@
+LIBDIRS= -framework GLUT -framework OpenGL
+LDLIBS = -lobjc -lm
+
+CPPFLAGS= 
+LDFLAGS= $(CPPFLAGS) $(LIBDIRS)
+
+TARGETS = 
+
+SRCS = 
+
+OBJS = $(SRCS:.cpp=.o)
+
+CXX = g++
+
+default: $(TARGETS)

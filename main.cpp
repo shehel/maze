@@ -28,7 +28,7 @@ float angle=0.0;
 float lx=0.0f,lz=-1.0f, ly=0;
 // XZ position of the camera
 float tilt = 0;
-float x=0.0f,z=5.0f, y = 0;
+float x=2,z=2, y = 0;
 
 float origTilt;
 float origLy;
@@ -78,31 +78,24 @@ struct light_t
 	float ambient[4];
 	float diffuse[4];
 	float specular[4];
-	float position[4];
-};
-
-const materials_t white_shiny = {
-	{0.1f, 0.1f, 0.1f, 1.0f},
-	{0.5f, 0.5f, 0.5f, 1.0f},
-	{0.5f, 0.5f, 0.5f, 1.0f},
-	100.0f
-};
-
-light_t light_0 = {
-	GL_LIGHT0,
-	{0.11f, 0.1f, 0.1f, 1.0f},
-	{1, 0, 0, 1.0f},
-	{1, 0.5f, 0.5f, 1.0f},
-	{1.7, 0, 2, 1}
 
 };
+
+const materials_t brass = {
+	{0.33f, 0.22f, 0.03f, 1.0f},
+	{0.78f, 0.57f, 0.11f, 1.0f},
+	{0.99f, 0.91f, 0.81f, 1.0f},
+	27.8f
+};
+
+
 
 light_t light_1 = {
 	GL_LIGHT1,
-	{0.11f, 0.1f, 0.1f, 1.0f},
-	{1, 1, 1, 1.0f},
-	{0.5f, 0.5f, 0.5f, 1.0f},
-	{.65, 1, .714, 1}
+	{ 0.1, 0.1, 0.1, 1 },
+	{ 0.5, 0.5, 0.5, 1 },
+		{0.5f, 0.5f, 0.5f, 1.0f}
+
 
 };
 
@@ -110,8 +103,8 @@ light_t light_2 = {
 	GL_LIGHT2,
 	{0.0f, 0.0f, 0.0f, 1.0f},
 	{0.0f, 1.0f, 0.0f, 1.0f},
-	{0.0f, 0.0f, 1.0f, 1.0f},
-	{12, 0, 12, 1}
+	{0.0f, 0.0f, 1.0f, 1.0f}
+
 
 };
 
@@ -125,7 +118,7 @@ void set_material(const materials_t& mat)
 }
 
 // set a given light
-void set_light(const light_t& light, float x, float y)
+void set_light(const light_t& light, float x, float y, int lModel)
 {
 
 			float position[4] = {x, 2, y, 1};
@@ -134,14 +127,21 @@ void set_light(const light_t& light, float x, float y)
 			glLightfv(light.name, GL_SPECULAR, light.specular);
 			glLightfv(light.name, GL_POSITION, position);
 
-
+			float intensity;
+			if (lModel == 2) {
+				intensity = 120;
+			} else {
+				intensity = 120;
+			}
 			//12 make the lights spot lights here if you want
 			float direction[3] = {
 						-position[0],
 						-position[1],
 						-position[2]};
 			glLightfv(light.name, GL_SPOT_DIRECTION, direction);
-			glLightf(light.name, GL_SPOT_CUTOFF, 180.0f);
+			glLightf(light.name, GL_SPOT_EXPONENT, 1);
+			glLightf(light.name, GL_SPOT_CUTOFF, intensity);
+
 
 			glEnable(light.name);
 	//}
@@ -178,10 +178,10 @@ std::vector<wall> walls; // a number of particles
 
 
 int a[12][12] = {
-	   {2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0} ,   /*  initializers for row indexed by 0 */
-	   {2, 2, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 1 */
-	   {2, 2, 2, 2, 2, 0, 0, 0, 0, 2, 0, 0} ,  /*  initializers for row indexed by 2 */
-	   {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0} ,
+	   {2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,   /*  initializers for row indexed by 0 */
+	   {0, 2, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 1 */
+	   {0, 2, 2, 2, 2, 0, 0, 0, 0, 2, 0, 0} ,  /*  initializers for row indexed by 2 */
+	   {0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0} ,
 	   {0, 0, 2, 2, 0, 2, 0, 0, 0, 2, 0, 0},
 	   {0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 0 */
 	   {0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 1 */
@@ -258,7 +258,7 @@ void drawWall(float x1, float x2, float y1, float y2, float z1, float z2){
 	glVertex3f(x1, y2, z2);
 
 	//Backside
-	glNormal3f (-1,0, 0);
+	glNormal3f (1,0, 0);
 	glTexCoord2f(0,0);
 	glVertex3f(x1, y1, z1);
 	glTexCoord2f(0,1);
@@ -351,12 +351,14 @@ void computePos(float deltaX, float deltaY) {
 
 void display(void)
 {
+
 	if (deltaX || deltaY) {
 		computePos(deltaX, deltaY);
 
 	}
 	y = tilt+ly;
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+		glClearColor(0.139, 0.134, 0.130, 1);
 	glMatrixMode(GL_MODELVIEW);
 
 
@@ -376,7 +378,7 @@ void display(void)
 
 		// perform any transformations of light positions here
 		glPointSize(5.0f);
-		set_light(light_1, x+lx, z+lz);
+		set_light(light_1, x+lx, z+lz, 1);
 	glPopMatrix();
 	glEnable(GL_LIGHTING);
 	glPushMatrix();
@@ -384,7 +386,7 @@ void display(void)
 		glRotatef(turnAngle, 0, 1, 0);
 
 	 	glBegin(GL_TRIANGLES);
-	 		glNormal3f (0,1, 0);
+	 		//glNormal3f (0,1, 0);
 			glColor3f(1, 0, 0);
 			glVertex3f(0.5f, 0, 0.5f);
 			glVertex3f(-0.5f, 0, 0.5f);
@@ -396,23 +398,34 @@ void display(void)
 
 		// perform any transformations of light positions here
 		glPointSize(5.0f);
-		set_light(light_1, -2, -3);
+		set_light(light_1, -3, -4, 1);
 	glPopMatrix();
 	glEnable(GL_LIGHTING);
 	//Text
 	glPushMatrix();
 		glColor3f(1, 1, 1);
-
-		glTranslatef(-2, 1, -3); // this will work
+		glTranslatef(-3, 0, -3); // this will work
 		glRasterPos2i(0, 0); // centre the text
-		draw_text("Hello! The Maze starts here. Find the teapot.");
+		draw_text("Hello! The Maze starts here. Find the teapot.Hold Z for map. GL.");
+
 	glPopMatrix();
+	glPushMatrix();
+		glColor3f(1, 1, 1);
+		glTranslatef(-3, -0.5, -4); // this will work
+		glRasterPos2i(0, 0); // centre the text
+		draw_text("Don't go close to the walls, they will eat you!");
 
+	glPopMatrix();
+	glPushMatrix();
 
+		// perform any transformations of light positions here
+		glPointSize(5.0f);
+		set_light(light_1, 20, 18, 2);
+	glPopMatrix();
 	glPushMatrix ();
-		glColor4f(1, 1, 1, 1);
-		glTranslatef(20, -0.5, 18);
-		glutSolidTeapot(0.8);
+		glColor3f(.255,.215, 0);
+		glTranslatef(20, -0.7, 18);
+		glutSolidTeapot(0.4);
 	glPopMatrix ();
 
 
@@ -468,12 +481,12 @@ void display(void)
 
 					// perform any transformations of light positions here
 					glRotatef(0, 0, 1, 0);
-					glPointSize(3.0f);
-					set_light(light_1, 2*i, j*2);
+					glPointSize(2.0f);
+					set_light(light_1, 2*i, j*2, 1);
 
 				glBegin(GL_POINTS);
 					glColor3f (1, 1, 1);
-					glVertex3f(2*i, 1, j*2);
+					glVertex3f(2*i, 20, j*2);
 				glEnd();
 				glPopMatrix();
 				glEnable(GL_LIGHTING);
@@ -593,10 +606,11 @@ void makeLightSource() {
 
 void init() {
 
-
+	glEnable(GL_COLOR_MATERIAL);
 	glEnable(GL_LIGHTING);
 	glEnable(GL_DEPTH_TEST);
 	glShadeModel(GL_SMOOTH);
+	set_material (brass);
 
 }
 
