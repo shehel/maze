@@ -1,9 +1,5 @@
-#ifdef __APPLE__
-#include <GLUT/glut.h>
-#else
-#include <GL/glew.h>
 #include <GL/glut.h>
-#endif
+
 
 #include <iostream>
 #include <stdio.h>
@@ -14,49 +10,51 @@
 #include <vector>
 #include <cmath>
 #include <math.h>
-
 #include <string.h>
 
 #include "load_and_bind_texture.h"
 
+/****************************
+VARIABLE DECLARATIONS
+****************************/
+
+//Window and size variables
+int mainWindow;
+int SizeX=800;
+int SizeY=600;
+
+//Origin for mouse
+int xOrigin=SizeX/2;
+int yOrigin=SizeX/2;
+
 float cameraMoveSpeed = 0.1f;
 
+//Booleans for tracking map states
 bool mapMode = false;
-// angle of rotation for the camera direction
+bool win = false;
+
+//Angle of rotation, direction vector of camera and position vector of camera
 float angle=0.0;
-// actual vector representing the camera's direction
 float lx=0.0f,lz=-1.0f, ly=0;
-// XZ position of the camera
 float tilt = 0;
-float x=2,z=2, y = 0;
+float x=0,z=4, y = 0;
 
 float origTilt;
 float origLy;
 
 
-// Tracking the key states. These variables will be zero
-//when no key is being presses
+
+//Angle for blip
 float turnAngle = 0;
+
+//Deltas for camera movement
 float deltaAngle = 0.0f;
 float deltaAngleY = 0.0f;
 float deltaX = 0;
-float deltaY = 0;
+float deltaZ = 0;
 
-float diffuse = 0.75;
-float specular = 1.0f;
-float exponent = 25.0f;
-float shininess = 50;
-float ambient = 0.1f;
-	float light_ambient[] = {ambient, ambient, ambient, 1.0};
-		float light_diffuse[] = {diffuse, diffuse, diffuse, 1.0};
-bool toggle = false;
-float light_position[] = {1.0, 1.0, 2.0, 0.0};
-float lighty = 2.0;
-float lightz = 2.0;
 
-int xOrigin=256;
-int yOrigin=256;
-
+//Texture variables
 unsigned int g_program_obj = 0;
 unsigned int g_vertex_obj = 0;
 unsigned int g_fragment_obj = 0;
@@ -64,7 +62,10 @@ unsigned int g_fragment_obj = 0;
 unsigned int g_wall = 0;
 unsigned int g_ground = 1;
 
+//Text variable
 unsigned int g_bitmap_text_handle = 0;
+
+//Datastructures for lights and material properties
 struct materials_t
 {
 	float ambient[4];
@@ -72,43 +73,45 @@ struct materials_t
 	float specular[4];
 	float shininess;
 };
+
 struct light_t
 {
+	int id;
 	size_t name;
 	float ambient[4];
 	float diffuse[4];
 	float specular[4];
-
 };
 
-const materials_t brass = {
+//Materials
+const materials_t materialM = {
 	{0.33f, 0.22f, 0.03f, 1.0f},
 	{0.78f, 0.57f, 0.11f, 1.0f},
-	{0.99f, 0.91f, 0.81f, 1.0f},
+	{0.90f, 0.8f, 0.7f, 1.0f},
 	27.8f
 };
 
-
-
+//Universal light (Shade of white)
 light_t light_1 = {
-	GL_LIGHT1,
-	{ 0.1, 0.1, 0.1, 1 },
+	1, GL_LIGHT1,
+	{ 0.01, 0.01, 0.01, 1 },
 	{ 0.5, 0.5, 0.5, 1 },
-		{0.5f, 0.5f, 0.5f, 1.0f}
-
-
+	{0.3f, 0.3f, 0.3f, 1.0f}
 };
 
+//Yellowish light for teapot
 light_t light_2 = {
-	GL_LIGHT2,
-	{0.0f, 0.0f, 0.0f, 1.0f},
-	{0.0f, 1.0f, 0.0f, 1.0f},
-	{0.0f, 0.0f, 1.0f, 1.0f}
-
-
+	2, GL_LIGHT2,
+	{ 0.1, 0.1, 0.1, 1 },
+	{ 0.7, 0.8, 0.5, 1 },
+	{0.5f, 0.5f, 0.5f, 1.0f}
 };
 
-// properties of a given material
+/****************************
+FUNCTIONS
+****************************/
+
+//Properties of a given material
 void set_material(const materials_t& mat)
 {
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat.ambient);
@@ -117,36 +120,68 @@ void set_material(const materials_t& mat)
 	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, mat.shininess);
 }
 
-// set a given light
-void set_light(const light_t& light, float x, float y, int lModel)
+//Set a given light
+void set_light(const light_t& light, float lightx, float lightz)
 {
+	float lighty;
+	float intensity;
+	float dir;
 
-			float position[4] = {x, 2, y, 1};
-			glLightfv(light.name, GL_AMBIENT, light.ambient);
-			glLightfv(light.name, GL_DIFFUSE, light.diffuse);
-			glLightfv(light.name, GL_SPECULAR, light.specular);
-			glLightfv(light.name, GL_POSITION, position);
+	//Different properties for teapot light
+	if (light.id == 1) {
+		lighty = 5;
+		intensity = 91;
+		dir = 1;
+	} else {
+		lighty = 2;
+		intensity = 50;
+		dir = -1;
+	}
 
-			float intensity;
-			if (lModel == 2) {
-				intensity = 120;
-			} else {
-				intensity = 120;
-			}
-			//12 make the lights spot lights here if you want
-			float direction[3] = {
-						-position[0],
-						-position[1],
-						-position[2]};
-			glLightfv(light.name, GL_SPOT_DIRECTION, direction);
-			glLightf(light.name, GL_SPOT_EXPONENT, 1);
-			glLightf(light.name, GL_SPOT_CUTOFF, intensity);
+	float position[4] = {lightx, lighty, lightz, 1};
+	glLightfv(light.name, GL_AMBIENT, light.ambient);
+	glLightfv(light.name, GL_DIFFUSE, light.diffuse);
+	glLightfv(light.name, GL_SPECULAR, light.specular);
+	glLightfv(light.name, GL_POSITION, position);
+
+	//Spotlight adjustment calls
+	float direction[3] = {0, dir, 0};
+	glLightfv(light.name, GL_SPOT_DIRECTION, direction);
+
+	glLightf(light.name, GL_SPOT_CUTOFF, intensity);
 
 
-			glEnable(light.name);
-	//}
+	glEnable(light.name);
 }
 
+//Function for handling menu events
+void processMenuEvents(int option)
+{
+	//Exit cleanly
+	if (option == 2) {
+		glutDestroyWindow(mainWindow);
+		exit(0);
+	}
+
+}
+
+//Menu creator function for mouse RB clicks
+void createGLUTMenus()
+{
+	int menu;
+
+	//"processMenuEvents" will handle events
+	menu = glutCreateMenu(processMenuEvents);
+
+	//Adding entries to the menu
+	glutAddMenuEntry("Find the Golden Teapot. HOLD Z for Map View.",1);
+	glutAddMenuEntry("Exit Maze",2);
+
+	//Attach the menu to the right button
+	glutAttachMenu(GLUT_RIGHT_BUTTON);
+}
+
+//Bitmap text function
 unsigned int make_bitmap_text()
 {
 	unsigned int handle_base = glGenLists(256);
@@ -155,7 +190,7 @@ unsigned int make_bitmap_text()
 	{
 		// a new list for each character
 		glNewList(handle_base+i, GL_COMPILE);
-			glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_10, i);
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, i);
 		glEndList();
 	}
 	return handle_base;
@@ -167,35 +202,32 @@ void draw_text(const char* text)
 	glCallLists(int(strlen(text)), GL_UNSIGNED_BYTE, text);
 }
 
-
-struct wall
-{
-	unsigned int tex; // texture handle
-	float position[3]; // world coordinate
-};
-
-std::vector<wall> walls; // a number of particles
-
-
+//Array for map layout. 0 for wall cubes and 2 for ground
 int a[12][12] = {
-	   {2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,   /*  initializers for row indexed by 0 */
-	   {0, 2, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 1 */
-	   {0, 2, 2, 2, 2, 0, 0, 0, 0, 2, 0, 0} ,  /*  initializers for row indexed by 2 */
+	   {2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+	   {0, 2, 0, 2, 0, 0, 0, 2, 2, 2, 2, 0} ,
+	   {0, 2, 2, 2, 2, 0, 0, 2, 0, 2, 2, 0} ,
 	   {0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0} ,
 	   {0, 0, 2, 2, 0, 2, 0, 0, 0, 2, 0, 0},
-	   {0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 0 */
-	   {0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0} ,   /*  initializers for row indexed by 1 */
-	   {0, 0, 2, 2, 2, 0, 0, 0, 0, 2, 0, 0} ,  /*  initializers for row indexed by 2 */
-	   {0, 2, 2, 2, 2, 2, 0, 0, 0, 2, 0, 0} ,
-	   {0, 0, 2, 0, 0, 2, 0, 0, 0, 2, 0, 0},
-	   {0, 0, 2, 2, 0, 0, 0, 0, 0, 2, 0, 0},
+	   {0, 0, 0, 2, 0, 0, 0, 2, 0, 2, 0, 0} ,
+	   {0, 0, 0, 2, 0, 0, 0, 2, 0, 2, 0, 0} ,
+	   {0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0} ,
+	   {0, 2, 2, 2, 0, 2, 0, 2, 0, 2, 0, 0} ,
+	   {0, 0, 2, 2, 0, 0, 2, 2, 2, 2, 2, 0},
+	   {0, 0, 2, 2, 0, 0, 0, 0, 2, 2, 2, 0},
 	   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 
+//Function for window resize
 void reshape(int w, int h)
 {
-	// Prevent a divide by zero, when window is too short
-	// (you cant make a window of zero width).
+	SizeX=w;
+	SizeY=h;
+
+	xOrigin = SizeX/2;
+	yOrigin = SizeY/2;
+
+	//Prevent divide by 0
 	if (h == 0)
 		h = 1;
 	float ratio =  w * 1.0 / h;
@@ -211,12 +243,9 @@ void reshape(int w, int h)
 
 	// Set the correct perspective.
 	gluPerspective(45.0f, ratio, 0.1f, 100.0f);
-
-	// Get Back to the Modelview
-
 }
 
-
+//Function to draw wall cube
 void drawWall(float x1, float x2, float y1, float y2, float z1, float z2){
 	glBindTexture ( GL_TEXTURE_2D, g_wall);
 	glBegin(GL_QUADS);
@@ -283,6 +312,7 @@ void drawWall(float x1, float x2, float y1, float y2, float z1, float z2){
 	glEnd();
 }
 
+//Function to draw floor square
 void drawFloor(GLfloat x1, GLfloat x2, GLfloat z1, GLfloat z2)
 {
 	glBindTexture ( GL_TEXTURE_2D, g_ground);
@@ -290,7 +320,6 @@ void drawFloor(GLfloat x1, GLfloat x2, GLfloat z1, GLfloat z2)
 		glNormal3f( 0.0, 1.0, 0.0);
 		//glColor4f(1, 1, 1, 1);
 		glColor3f(0.9f, 0.9f, 0.9f);
-		glNormal3f( 1.0, 1.0, 0.0);
 
 		glTexCoord2f(0,0);
 		glVertex3f( x1, -1, z2 );
@@ -301,48 +330,48 @@ void drawFloor(GLfloat x1, GLfloat x2, GLfloat z1, GLfloat z2)
 		glTexCoord2f(0,1);
 		glVertex3f( x1, -1, z1 );
     	glEnd();
-
 }
 
-bool checkCollision() {
-
+//Trivial collision detection based on position of cubes in the map
+//Based on what is front, if close to the wall, return true
+bool checkCollision()
+{
 	float camWorldX = (x+lx)/2;
-	float camWorldY = (z+lz)/2;
+	float camWorldZ = (z+lz)/2;
 
 	int truncX = static_cast<int>(camWorldX);
-	int truncY = static_cast<int>(camWorldY);
+	int truncZ = static_cast<int>(camWorldZ);
 
-	int roundedY = round(camWorldY);
+	int roundedZ = round(camWorldZ);
 	int roundedX = round(camWorldX);
-	std::cerr << camWorldX << " CamWorld " << camWorldY <<std::endl;
-	std::cerr << "Is it a wall? "  << a[roundedX][roundedY] <<std::endl;
-	if (a[roundedX][roundedY] == 0) {
-		if (camWorldX > truncX+0.5 || truncY > 1) {
-				std::cerr << "Worlds collide" <<std::endl;
+
+	if (a[roundedX][roundedZ] == 0) {
+		if (camWorldX > truncX+0.5 || truncZ > 1) {
 			return true;
 			}
 		else return false;
 	} else
 	 return false;
-
-
-
 }
 
-void computePos(float deltaX, float deltaY) {
-
+//Function to compute X and Z position
+void computePos(float deltaX, float deltaZ)
+{
 	float oldx = x;
 	float oldz = z;
 
+	//Front and back movement
 	x += deltaX * lx * cameraMoveSpeed;
 	z += deltaX * lz * cameraMoveSpeed;
 
-	float rightX = -lz;
-	float rightZ = lx;
+	float rightZ = -lz;
+	float rightX = lx;
 
-	x += deltaY * rightX * cameraMoveSpeed;
-	z += deltaY * rightZ * cameraMoveSpeed;
+	//Left and right movement
+	x += deltaZ * rightZ * cameraMoveSpeed;
+	z += deltaZ * rightX * cameraMoveSpeed;
 
+	//Don't allow movement is collision is true
 	if (checkCollision ()) {
 		x = oldx;
 		z = oldz;
@@ -351,114 +380,155 @@ void computePos(float deltaX, float deltaY) {
 
 void display(void)
 {
-
-	if (deltaX || deltaY) {
-		computePos(deltaX, deltaY);
-
+	//Check if goal is reached
+	if (x > 16 & x < 19 & z > 16 & z < 19) {
+		win = true;
 	}
+
+	//If there has been change in X and Z position, compute new position
+	if (deltaX || deltaZ) {
+		computePos(deltaX, deltaZ);
+	}
+
 	y = tilt+ly;
+
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-		glClearColor(0.139, 0.134, 0.130, 1);
+	//Color for background
+	glClearColor(0.139, 0.134, 0.130, 1);
 	glMatrixMode(GL_MODELVIEW);
-
-
 	glLoadIdentity();
 
-	if (mapMode) {
-		tilt = 75;
-		y  = 5;
+	//Stop fps view when goal is reached
+	if (win) {
+		mapMode = true;
 	}
+
+	//Incremental zoomin and zoomout
+	if (mapMode) {
+		if ( tilt != 75)
+		tilt++;
+		y = 5;
+	} else if (!mapMode & tilt > origTilt) {
+		tilt--;
+		y = origLy;
+	} else {
+		tilt = 0;
+		y = tilt+ly;
+	}
+
+	//Camera vector
 	gluLookAt(x, tilt, z, // eye position
 			  x+lx, y, z+lz, // reference point
 			  0, 1, 0  // up vector
 		);
-	//Map Blip Triangle
+
+	//Light for triangle blip
 	glDisable(GL_LIGHTING);
 	glPushMatrix();
-
-		// perform any transformations of light positions here
 		glPointSize(5.0f);
-		set_light(light_1, x+lx, z+lz, 1);
+		set_light(light_1, x+lx, z+lz);
 	glPopMatrix();
 	glEnable(GL_LIGHTING);
+
+	//Drawing the blip for camera position
 	glPushMatrix();
 		glTranslatef(x+lx, -0.99, z+lz);
 		glRotatef(turnAngle, 0, 1, 0);
-
 	 	glBegin(GL_TRIANGLES);
-	 		//glNormal3f (0,1, 0);
+	 		glNormal3f (0,1, 0);
 			glColor3f(1, 0, 0);
 			glVertex3f(0.5f, 0, 0.5f);
 			glVertex3f(-0.5f, 0, 0.5f);
 			glVertex3f(0, 0, -0.5f);
 		glEnd();
 	glPopMatrix();
+
+	//Changes to be made when goal is reached
+	if (!win) {
+		//Lighting for text
+		glDisable(GL_LIGHTING);
+		glPushMatrix();
+			// perform any transformations of light positions here
+			glPointSize(5.0f);
+			set_light(light_1, -3, -4);
+		glPopMatrix();
+		glEnable(GL_LIGHTING);
+
+		//Helper text
+		glPushMatrix();
+			glColor3f(1, 1, 1);
+			glTranslatef(-2, 1, -1); // this will work
+			glRasterPos2i(0, 0); // centre the text
+			draw_text("Hello! The Maze starts here. Right MB for help. GL.");
+		glPopMatrix();
+	} else {
+		//Light for text
+		glPushMatrix();
+			glPointSize(5.0f);
+			set_light(light_1, 15, 15);
+		glPopMatrix();
+		glEnable(GL_LIGHTING);
+
+		//Text when goal is reached
+		glPushMatrix();
+			glColor3f(1, 1, 1);
+			glTranslatef(16, 1, 16); // this will work
+			glRasterPos2i(0, 0); // centre the text
+			draw_text("____YOU WIN____");
+		glPopMatrix();
+	}
+
+	//Light for teapot
 	glDisable(GL_LIGHTING);
 	glPushMatrix();
-
-		// perform any transformations of light positions here
-		glPointSize(5.0f);
-		set_light(light_1, -3, -4, 1);
+		set_light(light_2, 20, 18);
 	glPopMatrix();
 	glEnable(GL_LIGHTING);
-	//Text
-	glPushMatrix();
-		glColor3f(1, 1, 1);
-		glTranslatef(-3, 0, -3); // this will work
-		glRasterPos2i(0, 0); // centre the text
-		draw_text("Hello! The Maze starts here. Find the teapot.Hold Z for map. GL.");
 
-	glPopMatrix();
-	glPushMatrix();
-		glColor3f(1, 1, 1);
-		glTranslatef(-3, -0.5, -4); // this will work
-		glRasterPos2i(0, 0); // centre the text
-		draw_text("Don't go close to the walls, they will eat you!");
-
-	glPopMatrix();
-	glPushMatrix();
-
-		// perform any transformations of light positions here
-		glPointSize(5.0f);
-		set_light(light_1, 20, 18, 2);
-	glPopMatrix();
+	//Teapot
 	glPushMatrix ();
 		glColor3f(.255,.215, 0);
-		glTranslatef(20, -0.7, 18);
-		glutSolidTeapot(0.4);
+		glTranslatef(20, -0.6, 18);
+		glutSolidTeapot(0.6);
 	glPopMatrix ();
 
-
-	/*glDisable(GL_LIGHTING);
-					glPushMatrix();
-
-					// perform any transformations of light positions here
-					glRotatef(20, 0, 1, 0);
-					glPointSize(3.0f);
-					set_light(light_1);
-
-				glBegin(GL_POINTS);
-					glColor3f (1, 0, 0);
-					glVertex3fv(light_1.position);
-
-
-				glEnd();
-
+	//Light for moon
+	glDisable(GL_LIGHTING);
+	glPushMatrix();
+		set_light(light_1, 70, 70);
 	glPopMatrix();
-	glEnable(GL_LIGHTING);*/
+	glEnable(GL_LIGHTING);
 
-	//int xcomponent;
-	int count=0;
-	int icorrect;
-	int jcorrect;
+	//Drawing moon
+	glPushMatrix ();
+		glColor3f(1.0f, 1.0f, 1.0f);
+		glTranslatef(60.0f, 26.0f, 60.0f);
+		glutSolidSphere(5.0f,20,10);
+	glPopMatrix ();
+
+	float stary;
+
 	for(int i = 0; i < 12; i++) {
-
-		icorrect = 12;
 		for(int j=0; j < 12; j++) {
 
-			//jcorrect = j + 6;
+			//Stars at varying heights
+			if (i > 6 & j > 6) {
+				glPointSize(3.0f);
+				stary = 3;
+			} else if (i < 6 & j < 6) {
+				glPointSize (4.0f);
+				stary = 25;
+			}
 
-			//std::cerr << a[icorrect][jcorrect] <<std::endl;
+			//Draw points for stars
+			glPushMatrix ();
+				glBegin(GL_POINTS);
+					glColor3f (1, 1, 1);
+					glVertex3f(50.3*i, stary, j*37.4);
+				glEnd();
+			glPopMatrix();
+
+			//Draw a wall
 			if (a[i][j] == 0) {
 				glPushMatrix();
 					glTranslatef(2*i, 0, j*2);
@@ -466,28 +536,21 @@ void display(void)
 					drawWall(1, -1, 1, -1, 1, -1);
 					glDisable(GL_TEXTURE_2D);
 				glPopMatrix();
-
-
-
 			} else {
+				//Draw a floor tile
 				glPushMatrix();
 					glTranslatef(2*i, 0, j*2);
 					glEnable(GL_TEXTURE_2D);
 					drawFloor(1, -1, 1, -1);
 					glDisable(GL_TEXTURE_2D);
 				glPopMatrix();
+
+				//Add a light
 				glDisable(GL_LIGHTING);
 				glPushMatrix();
-
 					// perform any transformations of light positions here
-					glRotatef(0, 0, 1, 0);
-					glPointSize(2.0f);
-					set_light(light_1, 2*i, j*2, 1);
-
-				glBegin(GL_POINTS);
-					glColor3f (1, 1, 1);
-					glVertex3f(2*i, 20, j*2);
-				glEnd();
+					glRotatef(0, 0, 0, 0);
+					set_light(light_1, 2*i, j*2);
 				glPopMatrix();
 				glEnable(GL_LIGHTING);
 			}
@@ -496,63 +559,47 @@ void display(void)
 	glutSwapBuffers();
 }
 
-
-
-
-void pressKey(unsigned char key, int xx, int yy) {
-
+//Keyboard press handler
+void pressKey(unsigned char key, int xx, int yy)
+{
 	switch (key) {
-
+		//Change y to get a top down view and store current y and eye y
+		//to revert back to it when key is released
 		case 'z': mapMode = true;
 			origTilt = tilt;
 			origLy = ly;
 			break;
-		case 'x': tilt = 0;
-			break;
 		case 'w' :
-				deltaX = 0.5f;
-				break;
-
-		case 's' : //
-				deltaX = -0.5f;
-				break;
-
-		case 'd' : //
-				deltaY = 0.5f; break;
-				break;
-
-		case 'a' : //
-				deltaY = -0.5f; break;
-
-
-
+			deltaX = 0.5f;break;
+		case 's' :
+			deltaX = -0.5f;break;
+		case 'd' :
+			deltaZ = 0.5f;break;
+		case 'a' :
+			deltaZ = -0.5f;break;
 	}
 }
 
-void releaseKey(unsigned char key, int x, int y) {
-
+//Keyboard press release handler
+void releaseKey(unsigned char key, int x, int y)
+{
 	switch (key) {
+
 		case 'z': mapMode = false;
-			tilt = origTilt;
-			ly = origLy;
 			break;
+		//Revert deltas to 0 when key is released
 		case 'w' :
 		case 's' : deltaX = 0;break;
 		case 'a' :
-		case 'd' : deltaY = 0;break;
+		case 'd' : deltaZ = 0;break;
 
-	}
+		}
 }
 
-void mouseButton(int button, int state, int x, int y) {
-
-
-}
-
-
-void mouseMove(int x, int y) {
-
-
+//Passive mouse movement callback
+void mouseMove(int x, int y)
+{
+	//turnAngle calculated for triangle blip rotation
 	turnAngle = -1 * (x - xOrigin);
 	if (turnAngle>0){
 		turnAngle = turnAngle + 10;
@@ -560,60 +607,34 @@ void mouseMove(int x, int y) {
 		turnAngle = turnAngle - 10;
 	else
 		turnAngle = 0;
-	//std::cerr << "xOrigin " << xOrigin << " x "<< x << std::endl;
+
+	//Change in x and y values due to mouse movement
 	deltaAngle = (x - xOrigin) * 0.02f;
 	deltaAngleY = (y - yOrigin) * 0.02f;
-	//std::cerr << "Angle " << (x-xOrigin)*1 << std::endl;
+
+	//Calculating camera direction
 	lx = sin(angle + deltaAngle);
 	lz = -cos(angle + deltaAngle);
 	ly =  -sin(deltaAngleY);
+
+	//
+	glutSetWindow(mainWindow);
 }
 
-void initWalls() {
-
-
-
-}
-
-
+//Loading textures
 void load_and_bind_textures()
 {
-	// load all textures here
-	g_wall = load_and_bind_texture("./help.png");
+	g_wall = load_and_bind_texture("./wall.png");
 	g_ground = load_and_bind_texture("./tile.png");
 }
 
-void makeLightSource() {
-	float light_ambient[] = {0.1, 0.1, 0.1, 1.0};
-	float light_diffue[] = {0.5, 0.5, 0.5, 1.0};
-	glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);
-
-	// fix the light position
-
-	glLightfv(GL_LIGHT0, GL_POSITION, light_position);
-
-	// enable lighting and turn on the light0
-	//glEnable(GL_LIGHTING);
-	glEnable(GL_LIGHT0);
-
-	// so that hidden surfaces are removed
-	glEnable(GL_DEPTH_TEST);
-
-	// mode of shading
-	glShadeModel(GL_SMOOTH); // can be GL_FLAT, GL_SMOOTH
-}
-
 void init() {
-
 	glEnable(GL_COLOR_MATERIAL);
 	glEnable(GL_LIGHTING);
 	glEnable(GL_DEPTH_TEST);
 	glShadeModel(GL_SMOOTH);
-	set_material (brass);
-
+	set_material (materialM);
 }
-
 
 int main(int argc, char **argv) {
 
@@ -621,8 +642,8 @@ int main(int argc, char **argv) {
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
 	glutInitWindowPosition(100,100);
-	glutInitWindowSize(512,512);
-	glutCreateWindow("3D Maze");
+	glutInitWindowSize(SizeX,SizeY);
+	mainWindow = glutCreateWindow("3D Maze");
 
 	//Callbacks
 	glutDisplayFunc(display);
@@ -636,11 +657,9 @@ int main(int argc, char **argv) {
 	glutKeyboardUpFunc(releaseKey);
 
 	//Mouse Callbacks
-	glutMouseFunc(mouseButton);
 	glutPassiveMotionFunc(mouseMove);
-	//glutSetCursor(GLUT_CURSOR_NONE);
-	glutWarpPointer(256,256);
-	// OpenGL init
+	glutWarpPointer(SizeX/2,SizeY/2);
+
 	glEnable(GL_DEPTH_TEST);
 
 	int max_texture_units = 0;
@@ -648,10 +667,9 @@ int main(int argc, char **argv) {
     	fprintf(stderr, "Max texture units is %d\n", max_texture_units);
 
 	load_and_bind_textures();
-	initWalls();
 	init();
 	g_bitmap_text_handle = make_bitmap_text();
-
+	createGLUTMenus ();
 	// enter GLUT event processing cycle
 	glutMainLoop();
 
